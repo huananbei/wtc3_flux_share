@@ -1246,3 +1246,95 @@ ablinepiece <- function(a=NULL,b=NULL,reg=NULL,from=NULL,to=NULL,...){
 
 
 
+
+
+#----------------------------------------------------------------------------------------------------------------
+#- plot heat-map style hexagons for GPP relative to air temperaure and PAR (i.e., Figure 6)
+plotGPP_hex <- function(dat=dat.hr.p,export=F,shading=0.7){
+  
+  #- Calculate GPP per unit leaf area, convert to umol CO2 m-2 s-1
+  dat$GPP_la <- with(dat,GPP/leafArea)
+  dat$GPP_la_umol <- with(dat,GPP_la/12*1*10^6/60/60)
+
+  #creates a scale of colors
+  myColorRamp <- function(colors, values) {
+    #v <- (values - min(values))/diff(range(values))
+    v <- (values - -1)/21 
+    x <- colorRamp(colors)(v)
+    rgb(x[,1], x[,2], x[,3], maxColorValue = 255)
+  }
+  a <- subset(dat,PAR>10 & Water_treatment=="control" & T_treatment=="ambient")[,c("Tair_al","PAR","GPP","GPP_la","GPP_la_umol")]
+  e <- subset(dat,PAR>10 & Water_treatment=="control" & T_treatment=="elevated")[,c("Tair_al","PAR","GPP","GPP_la","GPP_la_umol")]
+  all <- subset(dat,PAR>10 & Water_treatment=="control")[,c("T_treatment","chamber","Date","Tair_al","PAR","GPP","GPP_la","GPP_la_umol")]
+  
+  
+  #- create hex bins for a, e and all
+  ha <- hexbin(a$Tair_al, a$PAR,xbins=30,IDs=TRUE)
+  he <- hexbin(e$Tair_al, e$PAR,xbins=30,IDs=TRUE)
+  hall <- hexbin(all$Tair_al, all$PAR,xbins=30,IDs=TRUE)
+
+  #average values of points inside hexbins 
+  meanHexBina<-data.frame(mean=hexTapply(ha, a$GPP_la_umol, mean)) 
+  meanHexBine<-data.frame(mean=hexTapply(he, e$GPP_la_umol, mean)) 
+  meanHexBinall<-data.frame(mean=hexTapply(hall, all$GPP_la_umol, mean)) 
+
+  
+  colsa <- myColorRamp(c("blue","green","yellow", "red"), meanHexBina$mean)
+  colse <- myColorRamp(c("blue","green","yellow", "red"), meanHexBine$mean)
+
+  #-- plot Ambient
+  windows()
+  
+  ## setup coordinate system of the plot
+  par(cex.lab=2,cex.axis=2)
+  Pa <- plot(hall, type="n",legend=FALSE,xlab="",ylab="",main="")
+  
+  ##add hexagons (in the proper viewport):
+  pushHexport(Pa$plot.vp)
+  
+  #plots hexbins based on colors of third column
+  grid.hexagons(ha, style= "lattice", border = gray(.9), pen = colsa,  minarea = 1, maxarea = 1)
+  if(export==T) dev.copy2pdf(file="output/Figure6a.pdf")
+  
+  #-- plot elevated
+  windows()
+  
+  ## setup coordinate system of the plot
+  Pe <- plot(hall, type="n",legend=FALSE,xlab="",ylab="",main="")
+  
+  ##add hexagons (in the proper viewport):
+  pushHexport(Pe$plot.vp)
+  
+  #plots hexbins based on colors of third column
+  grid.hexagons(he, style= "lattice", border = gray(.9), pen = colse,  minarea = 1, maxarea = 1)
+  if(export==T) dev.copy2pdf(file="output/Figure6b.pdf")
+  
+  
+  
+  #- get five hexagons, add them as a legend
+  windows()
+  values <- seq(0,20,length=6)
+  colors <- myColorRamp(c("blue","green","yellow", "red"), values)
+  xloc <- rep(1,6)
+  yloc <- c(1,2,3,4,5,6)
+  plot(yloc~xloc,pch=18,cex=5,col=colors,ylim=c(0,10),axes=F,xlab="",ylab="")
+  text(xloc+0.1,yloc,labels=values,cex=1.5)
+  #dev.copy2pdf(file="/output/Figure6_legend.pdf")
+  
+  
+  
+  #-- subset data to a par range, plot Tresponse
+  toplot <- subset(all, PAR >1200 & PAR <1500 & GPP_la_umol>0)
+  
+  #- plot smoothplots
+  windows();par(las=1)
+  smoothplot(Tair_al, GPP_la_umol, T_treatment,pointcols=c(alpha("black",0.3),alpha("red",0.3)),
+             linecol=c("black","red"),polycolor=c(alpha("lightgrey",shading),alpha("lightgrey",shading)),
+             random="chamber",cex=1,main="",
+             xlim=c(15,45),ylim=c(0,25),xlab="",ylab="",
+             data=toplot, kgam=4, axes=FALSE)
+  legend("topright",pch=16,legend=c("ambient","warmed"),col=c(alpha("black",0.3),alpha("red",0.3)))
+  box();axis(side=1,labels=T);axis(side=2,labels=T);axis(side=4,labels=F)
+  if(export==T) dev.copy2pdf(file="output/Figure6c.pdf")
+  
+}

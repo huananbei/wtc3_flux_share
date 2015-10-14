@@ -10,9 +10,15 @@ library(lubridate)
 library(doBy)
 library(Hmisc)
 library(zoo)
+library(hexbin)
+
 
 #- load the analysis and plotting functions that do all of the actual work
 source("R/functions.R")
+
+#- export flag. Set to "T" to create pdfs of figures in "output/", or "F" to suppress output.
+export=T
+
 
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
@@ -37,7 +43,7 @@ fits.trt <- fits.list[[2]]      #- treatment averages
 
 
 #- plot R vs. T (Figure 2)
-plotRvsT_figure2(fits.mass=fits.mass,fits.trt=fits.trt,export=F)
+plotRvsT_figure2(fits.mass=fits.mass,fits.trt=fits.trt,export=export)
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
 
@@ -48,7 +54,7 @@ plotRvsT_figure2(fits.mass=fits.mass,fits.trt=fits.trt,export=F)
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
 #- plot Rbranch and Rleaf measured at 15 degrees C (Figure 3)
-plotRleafRbranch(export=F)
+plotRleafRbranch(export=export)
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
 
@@ -80,10 +86,21 @@ cue.day <- cue.list[[1]]                # extract chamber values on each day
 cue.day.trt <- cue.list[[2]]            # extract treatment averages
 
 #- plot met, Ra, GPP, and Ra/GPP data over time (Figure 4)
-plotPAR_AirT_CUE_GPP_Ra(cue.day.trt=cue.day.trt,export=F,lwidth=2.75)
+plotPAR_AirT_CUE_GPP_Ra(cue.day.trt=cue.day.trt,export=export,lwidth=2.75)
 
 
 #- plot Figure 5
-plotGPP_Ra_CUE_metdrivers(cue.day=cue.day,export=F,shading=0.7)
+plotGPP_Ra_CUE_metdrivers(cue.day=cue.day,export=export,shading=0.7)
+#-------------------------------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------
+
+
+
+#-------------------------------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------
+#- Plot the temperature and PAR dependence of GPP per unit leaf area (Figure 6).
+#- Note that this produces four separate graphs (panels a, b, and c, plus the legend).
+#   These panels were manually combined to create Figure 6.
+plotGPP_hex(dat=dat.hr.p,export=export,shading=0.7)
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
