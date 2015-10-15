@@ -122,6 +122,18 @@ plotAnet_met_diurnals(export=export,lsize=2,printANOVAs=F)
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
 #- Statistical analysis of Ra, GPP, and Ra/GPP (Table 1).
@@ -129,33 +141,30 @@ plotAnet_met_diurnals(export=export,lsize=2,printANOVAs=F)
 dat <- subset(cue.day,select=c("Date","T_treatment","Water_treatment","chamber","CUE","RtoA","GPP_la","Ra_la","PAR","leafArea"))
 dat2 <- subset(dat,Water_treatment=="control")
 dat2$T_treatment <- as.factor(dat2$T_treatment)
+dat2$MonthFac <- as.factor(month(dat2$Date))
 dat2$DateFac <- as.factor(dat2$Date)
 
 #####
 #- Ra
-sp.ra <- lme(log(Ra_la)~T_treatment*DateFac,random=list(~1|chamber),
+
+#- find the right transformation
+sp.Ra.simple <- lm(Ra_la~T_treatment*DateFac,data=dat2)
+value.r <- boxcox(object=sp.Ra.simple,lambda=seq(-1,0,1/20))
+exponent.r <- value.r$x[which.max(value.r$y)]
+dat2$Ra_latrans <- with(dat2,Ra_la^exponent.r)
+
+sp.ra <- lme(Ra_latrans~T_treatment*DateFac,random=list(~1|chamber),
              #corr=corAR1(~1|chamber),
              weights=varFunc(~as.numeric(Date)),
              data=dat2)
 
 #look at model diagnostics
 plot(sp.ra,resid(.,type="p")~fitted(.) | T_treatment,abline=0)   #resid vs. fitted for each treatment
-plot(sp.ra,log(Ra_la)~fitted(.)|chamber,abline=c(0,1))         #predicted vs. fitted for each species
-plot(sp.ra,log(Ra_la)~fitted(.),abline=c(0,1))              #predicted vs. fitted
+plot(sp.ra,Ra_latrans~fitted(.)|chamber,abline=c(0,1))         #predicted vs. fitted for each species
+plot(sp.ra,Ra_latrans~fitted(.),abline=c(0,1))              #predicted vs. fitted
 qqnorm(sp.ra, ~ resid(., type = "p"), abline = c(0, 1))     #qqplot
 anova(sp.ra)
 lsmeans(sp.ra,"T_treatment")
-
-#refit for summer months only
-sp.ra.summer <- lme(Ra_la~T_treatment+DateFac,random=list(~1|chamber),
-                    weights=varFunc(~as.numeric(Date)),
-                    data=subset(dat2,month(Date)==1 | month(Date)==12 | month(Date)==2))
-lsmeans(sp.ra.summer,"T_treatment")
-#refit for periods outside of summer
-sp.ra.notsummer <- lme(Ra_la~T_treatment*DateFac,random=list(~1|chamber),
-                       weights=varFunc(~as.numeric(Date)),
-                       data=subset(dat2,month(Date)!=1 & month(Date)!=12 & month(Date)!=2))
-lsmeans(sp.ra.notsummer,"T_treatment")
 ####
 
 
@@ -176,23 +185,51 @@ lsmeans(sp.gpp,"T_treatment")
 
 
 #####
-#- RtoA
-sp.CUE <- lme(log10(RtoA)~T_treatment*DateFac,random=list(~1|chamber),data=dat2,
-              weights=varIdent(form=~1|T_treatment))
-
+#- RtoA, with box-cox transformation
+sp.CUE.simple <- lm(RtoA~T_treatment*DateFac,data=dat2)
+value <- boxcox(object=sp.CUE.simple,lambda=seq(0,1,1/20))
+exponent <- value$x[which.max(value$y)]
+  
+dat2$RtoAtrans <- with(dat2,RtoA^exponent) # get the "best" transformation 
+sp.CUE <- lme(RtoAtrans~T_treatment*DateFac,random=list(~1|chamber),data=dat2,
+              #corr=corAR1(value=0.1,form=~1|chamber)
+              )
 
 #look at model diagnostics
 plot(sp.CUE,resid(.,type="p")~fitted(.) | T_treatment,abline=0)   #resid vs. fitted for each treatment
-plot(sp.CUE,log10(RtoA)~fitted(.)|chamber,abline=c(0,1))         #predicted vs. fitted for each species
-plot(sp.CUE,log10(RtoA)~fitted(.),abline=c(0,1))              #predicted vs. fitted
+plot(sp.CUE,RtoAtrans~fitted(.)|chamber,abline=c(0,1))         #predicted vs. fitted for each species
+plot(sp.CUE,RtoAtrans~fitted(.),abline=c(0,1))              #predicted vs. fitted
 qqnorm(sp.CUE, ~ resid(., type = "p"), abline = c(0, 1))     #qqplot
 anova(sp.CUE)
 lsmeans(sp.CUE,"T_treatment") 
 ####
 
 
+#- merge models together to make Table 1
+table.r1 <- as.matrix(anova(sp.ra))
+table.r2 <- cbind(table.r1,as.matrix(anova(sp.gpp))[1:4,3:4])
+table1 <- cbind(table.r2,as.matrix(anova(sp.CUE))[1:4,3:4])[2:4,]
 
+####
+#-- analysis of just the exceedingly hot days
+hotDates <- unique(dat.hr.p[which(dat.hr.p$Tair_al>40),"Date"]) # find dates with temperatures exceeding 40
+dat.hr.p.hot <- subset(dat.hr.p,Date %in% hotDates)
 
+#- daily climate metrics
+hotDates_met <- summaryBy(Tair_al~T_treatment+Date,data=dat.hr.p.hot,FUN=c(mean,min,max),na.rm=T)
+summaryBy(Tair_al.max~T_treatment,data=hotDates_met) # average maximum temperature on these hot dates
 
+#- re-analyze on hot dates only
+sp.CUE.hot <- lme(RtoAtrans~T_treatment*DateFac,random=list(~1|chamber),data=subset(dat2,Date %in% hotDates),
+              #corr=corAR1(value=0.1,form=~1|chamber)
+)
+
+#look at model diagnostics
+plot(sp.CUE.hot,resid(.,type="p")~fitted(.) | T_treatment,abline=0)   #resid vs. fitted for each treatment
+plot(sp.CUE.hot,RtoAtrans~fitted(.)|chamber,abline=c(0,1))         #predicted vs. fitted for each species
+plot(sp.CUE.hot,RtoAtrans~fitted(.),abline=c(0,1))              #predicted vs. fitted
+qqnorm(sp.CUE.hot, ~ resid(., type = "p"), abline = c(0, 1))     #qqplot
+anova(sp.CUE.hot)
+lsmeans(sp.CUE,"T_treatment") 
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
