@@ -630,7 +630,7 @@ plotRleafRbranch <- function(export=T){
   #   lsmeans(lm.br,"T_treatment")
   #   
   
-  if (export==T) dev.copy2pdf(file="output/Rtree_tissue_specific_Rates.pdf")
+  if (export==T) dev.copy2pdf(file="output/Figure3.pdf")
 }
 #----------------------------------------------------------------------------------------------------------------
 
@@ -847,7 +847,9 @@ returnCUE.day <- function(dat=dat.hr.p){
   cue.day$GPP_la <- with(cue.day,GPP/leafArea)
   cue.day$Ra_la <- with(cue.day,Ra/(leafArea)) #g C m-2 day-1
   
-  cue.day <- cue.day[-which(cue.day$Ra<0),] # remove two days from the beginning of the dataset in C09. Problem with flux data.
+  # remove a few days from the beginning of the dataset in C09. Problem with flux data.
+  toremove <- which(cue.day$Ra_la < 1.5 & cue.day$chamber=="C07" & cue.day$Date < as.Date("2013-10-3"))
+  cue.day <- cue.day[-toremove,] 
   
   
   
@@ -1337,4 +1339,118 @@ plotGPP_hex <- function(dat=dat.hr.p,export=F,shading=0.7){
   box();axis(side=1,labels=T);axis(side=2,labels=T);axis(side=4,labels=F)
   if(export==T) dev.copy2pdf(file="output/Figure6c.pdf")
   
+}
+#----------------------------------------------------------------------------------------------------------------
+
+
+
+
+#----------------------------------------------------------------------------------------------------------------
+plotAnet_met_diurnals <- function(export=T,lsize=2,size=2,printANOVAs=F){
+  
+  #- make multipanel plot of diurnals 
+  diurnal <- read.csv("data/WTC_TEMP_CM_GX-DIURNAL_20130710-20140220_L1_v2.csv")
+  diurnal$DateTime <- as.POSIXct(diurnal$DateTime,format="%Y-%m-%d %T",tz="GMT")
+  diurnal$Date <- as.Date(diurnal$DateTime)
+  diurnal$Hour <- hour(diurnal$DateTime)
+  
+  
+  #- do statistical tests on each date for photo
+  if(printANOVAs==T){
+    d.top <- subset(diurnal,position=="top")
+    d.l <- split(d.top,d.top$Date)
+    atest <- gtest <- list()
+    for(i in 1:length(d.l)){
+      dat <- d.l[[i]]
+      
+      print(paste("***"," Date = ",dat$Date[1],sep=""))
+      print("Anet")
+      atest[[i]] <- lme(Photo~T_treatment*timepoint,random=list(~1|chamber),data=dat)
+      print(anova(atest[[i]]))
+      
+      print("Cond")
+      gtest[[i]] <- lme(Cond~T_treatment*timepoint,random=list(~1|chamber),data=dat)
+      print(anova(gtest[[i]]))
+    }
+  }
+  
+  #-- get treatment averages for plotting
+  trtavgs <- summaryBy(Photo+Cond+Tleaf+VpdL+PARi+DateTime+Hour~ T_treatment+Date+timepoint,
+                       data=subset(diurnal,position=="top"),FUN=c(mean,standard.error),na.rm=T)
+  trtavgs.list <- split(trtavgs,trtavgs$Date)
+  ylims <- c(0,25)
+  xlims <- c(5,21)
+  #xlims=c(0.5,6.5)
+  windows(40,40);par(mfrow=c(3,5),mar=c(0,0,0,0),oma=c(5,12,5,3))
+  palette(c("black","red"))
+  #- plot photo on each date
+  for(i in 1:length(trtavgs.list)){
+    toplot <- trtavgs.list[[i]]
+    
+    plotBy(Photo.mean~Hour.mean|T_treatment,data=toplot,legend=F,pch=16,axes=F,type="b",cex=size,ylim=ylims,xlim=xlims,
+           panel.first=adderrorbars(x=toplot$Hour.mean,y=toplot$Photo.mean,SE=toplot$Photo.standard.error,direction="updown"))
+    if(i==1) magaxis(side=c(1,2,3,4),labels=c(0,1,0,0),las=1)
+    if(i >1 & i <5) magaxis(side=c(1,2,3,4),labels=c(0,0,0,0),las=1)
+    if(i==5)magaxis(side=c(1,2,3,4),labels=c(0,0,0,1),las=1)
+    if(i==1)legend("topleft",c("A","W"),lty=1,lwd=lsize,bty="n",col=c("black","red"),cex=1.2)
+    if(i==1)points(x=c(8,8),y=c(24.1,21.9),pch=16,col=c("black","red"),cex=size)
+    legend("bottomleft",letters[i],cex=1.2,bty='n')
+    if(i==1) title(ylab=expression(atop(A[net],
+                                        ~(mu*mol~m^-2~s^-1))),xpd=NA,cex.lab=1.8)
+    title(main=format(toplot$Date[1],"%Y-%b-%d"),xpd=NA,cex.lab=1.5,line=1)
+    
+  }
+  
+  
+  #- plot gs on each date
+  for(i in 1:length(trtavgs.list)){
+    toplot <- trtavgs.list[[i]]
+    
+    plotBy(Cond.mean~Hour.mean|T_treatment,data=toplot,legend=F,pch=16,axes=F,type="b",cex=size,ylim=c(0,0.31),xlim=xlims,
+           panel.first=adderrorbars(x=toplot$Hour.mean,y=toplot$Cond.mean,SE=toplot$Cond.standard.error,direction="updown"))
+    if(i==1) magaxis(side=c(1,2,3,4),labels=c(0,1,0,0),las=1)
+    if(i >1 & i <5) magaxis(side=c(1,2,3,4),labels=c(0,0,0,0),las=1)
+    if(i==5)magaxis(side=c(1,2,3,4),labels=c(0,0,0,1),las=1)
+    legend("bottomleft",letters[i+5],cex=1.2,bty='n')
+    if(i==1) title(ylab=expression(atop(g[s],
+                                        ~(mol~m^-2~s^-1))),xpd=NA,cex.lab=1.8)
+    
+  }
+  
+  #- plot PAR, airT, and VPD on each date
+  for(i in 1:length(trtavgs.list)){
+    toplot <- trtavgs.list[[i]]
+    
+    #- plot Tleaf in black and red
+    plotBy(Tleaf.mean~Hour.mean,data=subset(toplot,T_treatment=="ambient"),legend=F,pch=16,axes=F,type="l",col=c("black"),
+           cex=size,ylim=c(0,45),xlim=xlims,lwd=lsize)
+    if(i==1)magaxis(side=c(1,2,3,4),labels=c(1,1,0,0),las=1,col="black")
+    
+    if(i >1 & i <5) magaxis(side=c(1,2,3,4),labels=c(1,0,0,0),las=1)
+    if(i==5)magaxis(side=c(1,2,3,4),labels=c(1,0,0,0),las=1)
+    
+    if(i==1)legend("topleft",c("T","PAR","VPD"),lty=1,lwd=lsize,bty="n",col=c("black","blue","red"),cex=1.2)
+    if(i==1) title(ylab=expression(Environmental~variables),xpd=NA,cex.lab=1.8,line=7)
+    
+    #- plot PAR in blue
+    par(new=T)
+    plotBy(PARi.mean~Hour.mean,data=subset(toplot,T_treatment=="ambient"),legend=F,pch=16,axes=F,type="l",col="blue",cex=size,ylim=c(0,2000),lwd=lsize,xlim=xlims)
+    
+    if(i==1)axis(2, ylim=c(0,8),lwd=1,line=1.8,col="blue",col.axis="blue",las=1)
+    
+    #- plot VPD in red
+    par(new=T)
+    plotBy(VpdL.mean~Hour.mean,data=subset(toplot,T_treatment=="ambient"),lty=1,lwd=lsize,
+           legend=F,pch=16,axes=F,type="l",col="red",cex=size,ylim=c(0,7),xlim=xlims)
+    
+    if(i==3)title(xlab="Hour",cex.lab=1.5,xpd=NA)
+    if(i==1)axis(2, ylim=c(0,8),lwd=1,line=4.8,col="red",col.axis="red",las=1)
+    legend("bottomleft",letters[i+10],cex=1.2,bty='n')
+    
+    
+    
+  }
+  
+  
+  if(export==T)dev.copy2pdf(file="output/Figure7.pdf")
 }

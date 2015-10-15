@@ -11,7 +11,9 @@ library(doBy)
 library(Hmisc)
 library(zoo)
 library(hexbin)
-
+library(nlme)
+library(lsmeans)
+library(car)
 
 #- load the analysis and plotting functions that do all of the actual work
 source("R/functions.R")
@@ -20,10 +22,13 @@ source("R/functions.R")
 export=T
 
 
+
+
+
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
 #- plot R/A with a leaf-scale model (Figure 1)
-plotCUE_conceptual_fig(toexport=F,Tdew=10,Ca=400,Vcmax=100,Jmax=125,Tleaf=10:42,PPFD=1500)
+plotCUE_conceptual_fig(toexport=export,Tdew=10,Ca=400,Vcmax=100,Jmax=125,Tleaf=10:42,PPFD=1500)
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
 
@@ -41,7 +46,6 @@ fits.list <- return_Rcanopy_closed()
 fits.mass <- fits.list[[1]]     #- tree-level data
 fits.trt <- fits.list[[2]]      #- treatment averages
 
-
 #- plot R vs. T (Figure 2)
 plotRvsT_figure2(fits.mass=fits.mass,fits.trt=fits.trt,export=export)
 #-------------------------------------------------------------------------------------------------------------------
@@ -57,9 +61,6 @@ plotRvsT_figure2(fits.mass=fits.mass,fits.trt=fits.trt,export=export)
 plotRleafRbranch(export=export)
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
-
-
-
 
 
 
@@ -88,11 +89,13 @@ cue.day.trt <- cue.list[[2]]            # extract treatment averages
 #- plot met, Ra, GPP, and Ra/GPP data over time (Figure 4)
 plotPAR_AirT_CUE_GPP_Ra(cue.day.trt=cue.day.trt,export=export,lwidth=2.75)
 
-
-#- plot Figure 5
+#- plot PAR and Temperaure dependence of GPP, Ra, and Ra/GPP (Figure 5)
 plotGPP_Ra_CUE_metdrivers(cue.day=cue.day,export=export,shading=0.7)
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
+
+
+
 
 
 
@@ -102,5 +105,94 @@ plotGPP_Ra_CUE_metdrivers(cue.day=cue.day,export=export,shading=0.7)
 #- Note that this produces four separate graphs (panels a, b, and c, plus the legend).
 #   These panels were manually combined to create Figure 6.
 plotGPP_hex(dat=dat.hr.p,export=export,shading=0.7)
+#-------------------------------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------
+
+
+
+
+#-------------------------------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------
+#- Plot the 5 diurnal observations of leaf-level photosynthesis and stomatal conductance.
+#    Set printANOVAs to "T" to print ANOVAs for each date
+plotAnet_met_diurnals(export=export,lsize=2,printANOVAs=F)
+#-------------------------------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------
+
+
+
+
+#-------------------------------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------
+#- Statistical analysis of Ra, GPP, and Ra/GPP (Table 1).
+
+dat <- subset(cue.day,select=c("Date","T_treatment","Water_treatment","chamber","CUE","RtoA","GPP_la","Ra_la","PAR","leafArea"))
+dat2 <- subset(dat,Water_treatment=="control")
+dat2$T_treatment <- as.factor(dat2$T_treatment)
+dat2$DateFac <- as.factor(dat2$Date)
+
+#####
+#- Ra
+sp.ra <- lme(log(Ra_la)~T_treatment*DateFac,random=list(~1|chamber),
+             #corr=corAR1(~1|chamber),
+             weights=varFunc(~as.numeric(Date)),
+             data=dat2)
+
+#look at model diagnostics
+plot(sp.ra,resid(.,type="p")~fitted(.) | T_treatment,abline=0)   #resid vs. fitted for each treatment
+plot(sp.ra,log(Ra_la)~fitted(.)|chamber,abline=c(0,1))         #predicted vs. fitted for each species
+plot(sp.ra,log(Ra_la)~fitted(.),abline=c(0,1))              #predicted vs. fitted
+qqnorm(sp.ra, ~ resid(., type = "p"), abline = c(0, 1))     #qqplot
+anova(sp.ra)
+lsmeans(sp.ra,"T_treatment")
+
+#refit for summer months only
+sp.ra.summer <- lme(Ra_la~T_treatment+DateFac,random=list(~1|chamber),
+                    weights=varFunc(~as.numeric(Date)),
+                    data=subset(dat2,month(Date)==1 | month(Date)==12 | month(Date)==2))
+lsmeans(sp.ra.summer,"T_treatment")
+#refit for periods outside of summer
+sp.ra.notsummer <- lme(Ra_la~T_treatment*DateFac,random=list(~1|chamber),
+                       weights=varFunc(~as.numeric(Date)),
+                       data=subset(dat2,month(Date)!=1 & month(Date)!=12 & month(Date)!=2))
+lsmeans(sp.ra.notsummer,"T_treatment")
+####
+
+
+####
+#- GPP
+sp.gpp <- lme(GPP_la~T_treatment*DateFac,random=list(~1|chamber),data=dat2,
+              weights=varFunc(~1/leafArea))
+
+#look at model diagnostics
+plot(sp.gpp,resid(.,type="p")~fitted(.) | T_treatment,abline=0)   #resid vs. fitted for each treatment
+plot(sp.gpp,GPP_la~fitted(.)|chamber,abline=c(0,1))         #predicted vs. fitted for each species
+plot(sp.gpp,GPP_la~fitted(.),abline=c(0,1))              #predicted vs. fitted
+qqnorm(sp.gpp, ~ resid(., type = "p"), abline = c(0, 1))     #qqplot
+hist(sp.gpp$residuals)
+anova(sp.gpp)
+lsmeans(sp.gpp,"T_treatment")
+####
+
+
+#####
+#- RtoA
+sp.CUE <- lme(log10(RtoA)~T_treatment*DateFac,random=list(~1|chamber),data=dat2,
+              weights=varIdent(form=~1|T_treatment))
+
+
+#look at model diagnostics
+plot(sp.CUE,resid(.,type="p")~fitted(.) | T_treatment,abline=0)   #resid vs. fitted for each treatment
+plot(sp.CUE,log10(RtoA)~fitted(.)|chamber,abline=c(0,1))         #predicted vs. fitted for each species
+plot(sp.CUE,log10(RtoA)~fitted(.),abline=c(0,1))              #predicted vs. fitted
+qqnorm(sp.CUE, ~ resid(., type = "p"), abline = c(0, 1))     #qqplot
+anova(sp.CUE)
+lsmeans(sp.CUE,"T_treatment") 
+####
+
+
+
+
+
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
