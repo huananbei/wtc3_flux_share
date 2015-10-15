@@ -138,11 +138,30 @@ plotAnet_met_diurnals(export=export,lsize=2,printANOVAs=F)
 #-------------------------------------------------------------------------------------------------------------------
 #- Statistical analysis of Ra, GPP, and Ra/GPP (Table 1).
 
+#- manual calculation of the degrees of freedom I expect to have.
+
+#T = number of timepoints. w= number of warming treatments. c= number of replicate chambers within each treatment
+
+# Source                df calculation               df  
+# Warming                  w-1                        1
+# chamber(Warming)         w(c-1)                    10   # this is the random whole-plot error term
+# Time                    (T-1)                     254  # in this case I have 255 timepoints
+# Time*Warming             (T-1)*(w-1)              254
+# Time*chamber[warming]  (T-1)*(c-1)*w             2540  # this is the random sub-plot error term. 254*5*2
+
+#- note the random sub-plot error term will actually have fewer df than this, as I am excluding some data (drought)
+
+
+
 dat <- subset(cue.day,select=c("Date","T_treatment","Water_treatment","chamber","CUE","RtoA","GPP_la","Ra_la","PAR","leafArea"))
 dat2 <- subset(dat,Water_treatment=="control")
 dat2$T_treatment <- as.factor(dat2$T_treatment)
-dat2$MonthFac <- as.factor(month(dat2$Date))
 dat2$DateFac <- as.factor(dat2$Date)
+
+
+#- create "Explicitly nested" random factors. These will become the error terms in the ANOVA
+dat2$plotEN <- with(dat2,interaction(T_treatment,chamber))
+dat2$dateEN <- with(dat2,interaction(DateFac,plotEN))
 
 #####
 #- Ra
@@ -153,9 +172,9 @@ value.r <- boxcox(object=sp.Ra.simple,lambda=seq(-1,0,1/20))
 exponent.r <- value.r$x[which.max(value.r$y)]
 dat2$Ra_latrans <- with(dat2,Ra_la^exponent.r)
 
-sp.ra <- lme(Ra_latrans~T_treatment*DateFac,random=list(~1|chamber),
+sp.ra <- lme(Ra_latrans~T_treatment*DateFac,random=list(~1|plotEN,~1|dateEN),
              #corr=corAR1(~1|chamber),
-             weights=varFunc(~as.numeric(Date)),
+             #weights=varFunc(~as.numeric(Date)),
              data=dat2)
 
 #look at model diagnostics
