@@ -4,7 +4,7 @@ library(mgcv)
 library(scales)
 library(gplots)
 library(plotBy)
-library(plantecophys)
+library(plantecophys) # not on CRAN
 library(magicaxis)
 library(lubridate)
 library(doBy)
@@ -15,10 +15,16 @@ library(nlme)
 library(lsmeans)
 library(car)
 
+#- why won't this work?
+#library(devtools)
+#install_github("jslefche/piecewiseSEM")
+library(piecewiseSEM) # not on CRAN
+
 #- load the analysis and plotting functions that do all of the actual work
 source("R/functions.R")
 
 #- export flag. Set to "T" to create pdfs of figures in "output/", or "F" to suppress output.
+#- This flag is passed to many of the plotting functions below.
 export=T
 
 
@@ -144,12 +150,13 @@ plotAnet_met_diurnals(export=export,lsize=2,printANOVAs=F)
 
 # Source                df calculation               df  
 # Warming                  w-1                        1
-# chamber(Warming)         w(c-1)                    10   # this is the random whole-plot error term
-# Time                    (T-1)                     254  # in this case I have 255 timepoints
+# chamber(Warming)         w(c-1)                    10   # this is the random whole-plot error term to test warming main effect
+# Time                    (T-1)                     254   # in this case I have 255 timepoints
 # Time*Warming             (T-1)*(w-1)              254
-# Time*chamber[warming]  (T-1)*(c-1)*w             2540  # this is the random sub-plot error term. 254*5*2
+# Time*chamber[warming]  (T-1)*(c-1)*w             2540  # this is the random sub-plot error term. it's the same as the residual
+                                                         #, as there is no sub-replication here.. 254*5*2
 
-#- note the random sub-plot error term will actually have fewer df than this, as I am excluding some data (drought)
+#- note the random sub-plot error term will actually have fewer df than this, as I am excluding the drought data
 
 
 
@@ -165,41 +172,58 @@ dat2$dateEN <- with(dat2,interaction(DateFac,plotEN)) #- this doesn't make a dif
 
 #####
 #- Ra
-
-#- find the right transformation
-sp.Ra.simple <- lm(Ra_la~T_treatment*DateFac,data=dat2)
-value.r <- boxcox(object=sp.Ra.simple,lambda=seq(-1,0,1/20))
-exponent.r <- value.r$x[which.max(value.r$y)]
-dat2$Ra_latrans <- with(dat2,Ra_la^exponent.r)
-
-sp.ra <- lme(Ra_latrans~T_treatment*DateFac,random=list(~1|plotEN,~1|dateEN),
-             #corr=corAR1(~1|chamber),
-             #weights=varFunc(~as.numeric(Date)),
-             data=dat2)
-
-#look at model diagnostics
-plot(sp.ra,resid(.,type="p")~fitted(.) | T_treatment,abline=0)   #resid vs. fitted for each treatment
-plot(sp.ra,Ra_latrans~fitted(.)|chamber,abline=c(0,1))         #predicted vs. fitted for each species
-plot(sp.ra,Ra_latrans~fitted(.),abline=c(0,1))              #predicted vs. fitted
-qqnorm(sp.ra, ~ resid(., type = "p"), abline = c(0, 1))     #qqplot
-anova(sp.ra)
-lsmeans(sp.ra,"T_treatment")
-####
+# 
+# #- find the right transformation
+# sp.Ra.simple <- lm(Ra_la~T_treatment*DateFac,data=dat2)
+# value.r <- boxcox(object=sp.Ra.simple,lambda=seq(-1,0,1/20))
+# exponent.r <- value.r$x[which.max(value.r$y)]
+# dat2$Ra_latrans <- with(dat2,Ra_la^exponent.r)
+# 
+# sp.ra <- lme(Ra_latrans~T_treatment*DateFac,random=list(~1|plotEN,~1|dateEN),
+#              #corr=corAR1(~1|chamber),
+#              #weights=varFunc(~as.numeric(Date)),
+#              data=dat2)
+# 
+# #look at model diagnostics
+# plot(sp.ra,resid(.,type="p")~fitted(.) | T_treatment,abline=0)   #resid vs. fitted for each treatment
+# plot(sp.ra,Ra_latrans~fitted(.)|chamber,abline=c(0,1))         #predicted vs. fitted for each species
+# plot(sp.ra,Ra_latrans~fitted(.),abline=c(0,1))              #predicted vs. fitted
+# qqnorm(sp.ra, ~ resid(., type = "p"), abline = c(0, 1))     #qqplot
+# anova(sp.ra)
+# lsmeans(sp.ra,"T_treatment")
+# ####
 
 
 ####
 #- GPP
-sp.gpp <- lme(GPP_la~T_treatment*DateFac,random=list(~1|chamber),data=dat2,
-              weights=varFunc(~1/leafArea))
+sp.gpp <- lme(GPP_la~T_treatment*DateFac,random=list(~1|chamber),
+              weights=varIdent(form=~1|T_treatment),data=dat2,method="ML")
+sp.gpp.ar1 <- update(sp.gpp,correlation=corAR1(0.7,form=~1|chamber),method="ML")
+AIC(sp.gpp,sp.gpp.ar1)
+anova(sp.gpp,sp.gpp.ar1) # model with autocorrelation is immensely better!
+
+#- refit best model with REML
+sp.gpp.ar1.reml <- update(sp.gpp.ar1,method="REML")
 
 #look at model diagnostics
-plot(sp.gpp,resid(.,type="p")~fitted(.) | T_treatment,abline=0)   #resid vs. fitted for each treatment
-plot(sp.gpp,GPP_la~fitted(.)|chamber,abline=c(0,1))         #predicted vs. fitted for each species
-plot(sp.gpp,GPP_la~fitted(.),abline=c(0,1))              #predicted vs. fitted
-qqnorm(sp.gpp, ~ resid(., type = "p"), abline = c(0, 1))     #qqplot
-hist(sp.gpp$residuals)
-anova(sp.gpp)
-lsmeans(sp.gpp,"T_treatment")
+plot(sp.gpp.ar1.reml,resid(.,type="p")~fitted(.) | T_treatment,abline=0)   #resid vs. fitted for each treatment
+plot(sp.gpp.ar1.reml,GPP_la~fitted(.)|chamber,abline=c(0,1))         #predicted vs. fitted for each chamber
+plot(sp.gpp.ar1.reml,GPP_la~fitted(.),abline=c(0,1))              #predicted vs. fitted
+qqnorm(sp.gpp.ar1.reml, ~ resid(., type = "p"), abline = c(0, 1))     #qqplot
+hist(sp.gpp.ar1.reml$residuals)
+anova(sp.gpp.ar1.reml)
+lsmeans(sp.gpp.ar1.reml,"T_treatment")
+
+#- compare models with and without interaction terms
+sp.gpp.ar1.noint <- update(sp.gpp.ar1,.~.-T_treatment:DateFac)
+anova(sp.gpp.ar1,sp.gpp.ar1.noint) # dropping the interaction results in a poorer model
+
+#- get pseudo r2 values
+plot(sp.gpp.ar1.reml,GPP_la~fitted(.)|chamber,abline=c(0,1))         #predicted vs. fitted for each chamber
+summary(lm(sp.gpp.ar1$data$GPP_la~sp.gpp.ar1$fitted))$r.squared       # pseudo r2 for full model
+summary(lm(sp.gpp.ar1$data$GPP_la~sp.gpp.ar1.noint$fitted))$r.squared # pseudo r2 for model without interaction
+
+#- so the interaction between T_treatment and date is "significant" for GPP, but it's not very important
 ####
 
 
