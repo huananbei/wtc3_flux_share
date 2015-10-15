@@ -161,7 +161,7 @@ dat2$DateFac <- as.factor(dat2$Date)
 
 #- create "Explicitly nested" random factors. These will become the error terms in the ANOVA
 dat2$plotEN <- with(dat2,interaction(T_treatment,chamber))
-dat2$dateEN <- with(dat2,interaction(DateFac,plotEN))
+dat2$dateEN <- with(dat2,interaction(DateFac,plotEN)) #- this doesn't make a difference. It's the same as the residual
 
 #####
 #- Ra
