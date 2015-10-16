@@ -4,7 +4,6 @@ library(mgcv)
 library(scales)
 library(gplots)
 library(plotBy)
-library(plantecophys) # not on CRAN
 library(magicaxis)
 library(lubridate)
 library(doBy)
@@ -15,10 +14,12 @@ library(nlme)
 library(lsmeans)
 library(car)
 
-#- why won't this work?
+#- the following libraries aren't on CRAN, but can be installed with devtools
 #library(devtools)
+#install_bitbucket("remkoduursma/plantecophys")
 #install_github("jslefche/piecewiseSEM")
-library(piecewiseSEM) # not on CRAN
+#library(piecewiseSEM) # for estimating r2 value in mixed-effects models
+library(plantecophys) # for modeling leaf-level gas exchange
 
 #- load the analysis and plotting functions that do all of the actual work
 source("R/functions.R")
@@ -172,26 +173,47 @@ dat2$dateEN <- with(dat2,interaction(DateFac,plotEN)) #- this doesn't make a dif
 
 #####
 #- Ra
-# 
-# #- find the right transformation
-# sp.Ra.simple <- lm(Ra_la~T_treatment*DateFac,data=dat2)
-# value.r <- boxcox(object=sp.Ra.simple,lambda=seq(-1,0,1/20))
-# exponent.r <- value.r$x[which.max(value.r$y)]
-# dat2$Ra_latrans <- with(dat2,Ra_la^exponent.r)
-# 
-# sp.ra <- lme(Ra_latrans~T_treatment*DateFac,random=list(~1|plotEN,~1|dateEN),
-#              #corr=corAR1(~1|chamber),
-#              #weights=varFunc(~as.numeric(Date)),
-#              data=dat2)
-# 
-# #look at model diagnostics
-# plot(sp.ra,resid(.,type="p")~fitted(.) | T_treatment,abline=0)   #resid vs. fitted for each treatment
-# plot(sp.ra,Ra_latrans~fitted(.)|chamber,abline=c(0,1))         #predicted vs. fitted for each species
-# plot(sp.ra,Ra_latrans~fitted(.),abline=c(0,1))              #predicted vs. fitted
-# qqnorm(sp.ra, ~ resid(., type = "p"), abline = c(0, 1))     #qqplot
-# anova(sp.ra)
-# lsmeans(sp.ra,"T_treatment")
-# ####
+
+#- find the "right" Box-Cox transformation for Ra_la
+sp.Ra.simple <- lm(Ra_la~T_treatment*DateFac,data=dat2)
+value.r <- boxcox(object=sp.Ra.simple,lambda=seq(-1,0,1/20))
+exponent.r <- value.r$x[which.max(value.r$y)]
+dat2$Ra_latrans <- with(dat2,Ra_la^exponent.r)
+
+#- compare models with and without autocorrelation
+sp.ra <- lme(Ra_latrans~T_treatment*DateFac,random=list(~1|chamber),
+              weights=varIdent(form=~1|T_treatment),data=dat2,method="ML")
+sp.ra.ar1 <- update(sp.ra,correlation=corAR1(0.7,form=~1|chamber),method="ML")
+AIC(sp.ra,sp.ra.ar1)
+anova(sp.ra,sp.ra.ar1) # model with autocorrelation is immensely better!
+
+#- refit best model with REML
+sp.ra.ar1.reml <- update(sp.ra.ar1,method="REML")
+
+#look at model diagnostics
+plot(sp.ra.ar1,resid(.,type="p")~fitted(.) | T_treatment,abline=0)   #resid vs. fitted for each treatment
+plot(sp.ra.ar1,Ra_latrans~fitted(.)|chamber,abline=c(0,1))           #predicted vs. fitted for each chamber
+plot(sp.ra.ar1,Ra_latrans~fitted(.),abline=c(0,1))                   #predicted vs. fitted
+qqnorm(sp.ra.ar1, ~ resid(., type = "p"), abline = c(0, 1))          #qqplot. Departure at high values.
+anova(sp.ra.ar1)
+
+
+
+#- compare models with and without interaction terms
+sp.ra.ar1.noint <- update(sp.ra.ar1,.~.-T_treatment:DateFac)
+AIC(sp.ra.ar1,sp.ra.ar1.noint) # dropping the interaction results in a more parsimonious model
+
+#- get pseudo r2 values
+summary(lm(sp.ra.ar1$data$Ra_latrans~sp.ra.ar1$fitted))$r.squared       # pseudo r2 for full model
+summary(lm(sp.ra.ar1$data$Ra_latrans~sp.ra.ar1.noint$fitted))$r.squared # pseudo r2 for model without interaction
+
+#- Warming by date interaction is "significant" for Ra_la, but excluding it only drops the pseudo r2 from 0.92 to 0.89.
+#- Therefore the warming by date interaction is not actually that important in a quantatiative sense.
+####
+
+
+
+
 
 
 ####
@@ -207,9 +229,9 @@ sp.gpp.ar1.reml <- update(sp.gpp.ar1,method="REML")
 
 #look at model diagnostics
 plot(sp.gpp.ar1.reml,resid(.,type="p")~fitted(.) | T_treatment,abline=0)   #resid vs. fitted for each treatment
-plot(sp.gpp.ar1.reml,GPP_la~fitted(.)|chamber,abline=c(0,1))         #predicted vs. fitted for each chamber
-plot(sp.gpp.ar1.reml,GPP_la~fitted(.),abline=c(0,1))              #predicted vs. fitted
-qqnorm(sp.gpp.ar1.reml, ~ resid(., type = "p"), abline = c(0, 1))     #qqplot
+plot(sp.gpp.ar1.reml,GPP_la~fitted(.)|chamber,abline=c(0,1))               #predicted vs. fitted for each chamber
+plot(sp.gpp.ar1.reml,GPP_la~fitted(.),abline=c(0,1))                       #predicted vs. fitted
+qqnorm(sp.gpp.ar1.reml, ~ resid(., type = "p"), abline = c(0, 1))          #qqplot
 hist(sp.gpp.ar1.reml$residuals)
 anova(sp.gpp.ar1.reml)
 lsmeans(sp.gpp.ar1.reml,"T_treatment")
@@ -219,7 +241,6 @@ sp.gpp.ar1.noint <- update(sp.gpp.ar1,.~.-T_treatment:DateFac)
 anova(sp.gpp.ar1,sp.gpp.ar1.noint) # dropping the interaction results in a poorer model
 
 #- get pseudo r2 values
-plot(sp.gpp.ar1.reml,GPP_la~fitted(.)|chamber,abline=c(0,1))         #predicted vs. fitted for each chamber
 summary(lm(sp.gpp.ar1$data$GPP_la~sp.gpp.ar1$fitted))$r.squared       # pseudo r2 for full model
 summary(lm(sp.gpp.ar1$data$GPP_la~sp.gpp.ar1.noint$fitted))$r.squared # pseudo r2 for model without interaction
 
@@ -227,31 +248,67 @@ summary(lm(sp.gpp.ar1$data$GPP_la~sp.gpp.ar1.noint$fitted))$r.squared # pseudo r
 ####
 
 
+
+
+
+
+
 #####
-#- RtoA, with box-cox transformation
+#- Ra/GPP
+
+#- find the "right" box-cox transformation
 sp.CUE.simple <- lm(RtoA~T_treatment*DateFac,data=dat2)
 value <- boxcox(object=sp.CUE.simple,lambda=seq(0,1,1/20))
-exponent <- value$x[which.max(value$y)]
+exponent.cue <- value$x[which.max(value$y)]
   
-dat2$RtoAtrans <- with(dat2,RtoA^exponent) # get the "best" transformation 
-sp.CUE <- lme(RtoAtrans~T_treatment*DateFac,random=list(~1|chamber),data=dat2,
-              #corr=corAR1(value=0.1,form=~1|chamber)
-              )
+dat2$RtoAtrans <- with(dat2,RtoA^exponent.cue) # get the "best" transformation 
+
+#- compare models with and without autocorrelation
+sp.cue <- lme(RtoAtrans~T_treatment*DateFac,random=list(~1|chamber),
+              weights=varIdent(form=~1|T_treatment),data=dat2,method="ML")
+sp.cue.ar1 <- update(sp.cue,correlation=corAR1(0.7,form=~1|chamber),method="ML")
+AIC(sp.cue,sp.cue.ar1)
+anova(sp.cue,sp.cue.ar1) # model with autocorrelation is immensely better!
+
+
+#- refit best model with REML
+sp.cue.ar1.reml <- update(sp.cue.ar1,method="REML")
 
 #look at model diagnostics
-plot(sp.CUE,resid(.,type="p")~fitted(.) | T_treatment,abline=0)   #resid vs. fitted for each treatment
-plot(sp.CUE,RtoAtrans~fitted(.)|chamber,abline=c(0,1))         #predicted vs. fitted for each species
-plot(sp.CUE,RtoAtrans~fitted(.),abline=c(0,1))              #predicted vs. fitted
-qqnorm(sp.CUE, ~ resid(., type = "p"), abline = c(0, 1))     #qqplot
-anova(sp.CUE)
-lsmeans(sp.CUE,"T_treatment") 
+plot(sp.cue.ar1.reml,resid(.,type="p")~fitted(.) | T_treatment,abline=0)   #resid vs. fitted for each treatment
+plot(sp.cue.ar1.reml,RtoAtrans~fitted(.)|chamber,abline=c(0,1))            #predicted vs. fitted for each chamber
+plot(sp.cue.ar1.reml,RtoAtrans~fitted(.),abline=c(0,1))                    #predicted vs. fitted
+qqnorm(sp.cue.ar1.reml, ~ resid(., type = "p"), abline = c(0, 1))          #qqplot. Departure at both ends
+hist(sp.cue.ar1.reml$residuals)
+
+anova(sp.cue.ar1.reml)
+lsmeans(sp.cue.ar1.reml,"T_treatment") 
+
+#- compare models with and without interaction terms
+sp.cue.ar1.noint <- update(sp.cue.ar1,.~.-T_treatment:DateFac)
+anova(sp.cue.ar1,sp.cue.ar1.noint) # dropping the interaction results in a more parsimonious model
+
+#- get pseudo r2 values
+summary(lm(sp.cue.ar1$data$RtoAtrans~sp.cue.ar1$fitted))$r.squared       # pseudo r2 for full model
+summary(lm(sp.cue.ar1$data$RtoAtrans~sp.cue.ar1.noint$fitted))$r.squared # pseudo r2 for model without interaction
+
+#- so the model without the warming by date interaction is more parsimonious and drops the pseudo r2 from 0.93 to 0.91
 ####
 
 
+
+
+
+
+
+
+
 #- merge models together to make Table 1
-table.r1 <- as.matrix(anova(sp.ra))
-table.r2 <- cbind(table.r1,as.matrix(anova(sp.gpp))[1:4,3:4])
-table1 <- cbind(table.r2,as.matrix(anova(sp.CUE))[1:4,3:4])[2:4,]
+table.r1 <- as.matrix(anova(sp.cue.ar1.reml))
+table.r2 <- cbind(table.r1,as.matrix(anova(sp.gpp.ar1.reml))[1:4,3:4])
+table1 <- cbind(table.r2,as.matrix(anova(sp.cue.ar1.reml))[1:4,3:4])[2:4,]
+
+
 
 ####
 #-- analysis of just the exceedingly hot days
@@ -263,16 +320,16 @@ hotDates_met <- summaryBy(Tair_al~T_treatment+Date,data=dat.hr.p.hot,FUN=c(mean,
 summaryBy(Tair_al.max~T_treatment,data=hotDates_met) # average maximum temperature on these hot dates
 
 #- re-analyze on hot dates only
-sp.CUE.hot <- lme(RtoAtrans~T_treatment*DateFac,random=list(~1|chamber),data=subset(dat2,Date %in% hotDates),
+sp.CUE.hot <- lme(RtoA~T_treatment*DateFac,random=list(~1|chamber),data=subset(dat2,Date %in% hotDates),
               #corr=corAR1(value=0.1,form=~1|chamber)
 )
 
 #look at model diagnostics
 plot(sp.CUE.hot,resid(.,type="p")~fitted(.) | T_treatment,abline=0)   #resid vs. fitted for each treatment
-plot(sp.CUE.hot,RtoAtrans~fitted(.)|chamber,abline=c(0,1))         #predicted vs. fitted for each species
-plot(sp.CUE.hot,RtoAtrans~fitted(.),abline=c(0,1))              #predicted vs. fitted
+plot(sp.CUE.hot,RtoA~fitted(.)|chamber,abline=c(0,1))         #predicted vs. fitted for each species
+plot(sp.CUE.hot,RtoA~fitted(.),abline=c(0,1))              #predicted vs. fitted
 qqnorm(sp.CUE.hot, ~ resid(., type = "p"), abline = c(0, 1))     #qqplot
 anova(sp.CUE.hot)
-lsmeans(sp.CUE,"T_treatment") 
+lsmeans(sp.CUE.hot,"T_treatment") 
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
