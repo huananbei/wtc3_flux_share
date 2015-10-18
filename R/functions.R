@@ -1353,7 +1353,7 @@ plotAnet_met_diurnals <- function(export=T,lsize=2,size=2,printANOVAs=F){
   diurnal$DateTime <- as.POSIXct(diurnal$DateTime,format="%Y-%m-%d %T",tz="GMT")
   diurnal$Date <- as.Date(diurnal$DateTime)
   diurnal$Hour <- hour(diurnal$DateTime)
-  
+  diurnal$timepoint <- as.factor(diurnal$timepoint)
   
   #- do statistical tests on each date for photo
   if(printANOVAs==T){

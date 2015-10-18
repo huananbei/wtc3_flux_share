@@ -1,5 +1,4 @@
 #- required libraries
-library(HIEv)
 library(mgcv)
 library(scales)
 library(gplots)
@@ -13,20 +12,23 @@ library(hexbin)
 library(nlme)
 library(lsmeans)
 library(car)
+library(data.table)
 
-#- the following libraries aren't on CRAN, but can be installed with devtools
-#library(devtools)
+#- the following libraries aren't on CRAN, but can be installed from github or bitbucket with devtools
+library(devtools)
 #install_bitbucket("remkoduursma/plantecophys")
+#install_bitbucket("remkoduursma/HIEv")
 #install_github("jslefche/piecewiseSEM")
-#library(piecewiseSEM) # for estimating r2 value in mixed-effects models
+library(piecewiseSEM) # for estimating r2 value in mixed-effects models
 library(plantecophys) # for modeling leaf-level gas exchange
+library(HIEv)         # is this needed?
 
 #- load the analysis and plotting functions that do all of the actual work
 source("R/functions.R")
 
 #- export flag. Set to "T" to create pdfs of figures in "output/", or "F" to suppress output.
 #- This flag is passed to many of the plotting functions below.
-export=T
+export=F
 
 
 
@@ -123,213 +125,5 @@ plotGPP_hex(dat=dat.hr.p,export=export,shading=0.7)
 #- Plot the 5 diurnal observations of leaf-level photosynthesis and stomatal conductance.
 #    Set printANOVAs to "T" to print ANOVAs for each date
 plotAnet_met_diurnals(export=export,lsize=2,printANOVAs=F)
-#-------------------------------------------------------------------------------------------------------------------
-#-------------------------------------------------------------------------------------------------------------------
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#-------------------------------------------------------------------------------------------------------------------
-#-------------------------------------------------------------------------------------------------------------------
-#- Statistical analysis of Ra, GPP, and Ra/GPP (Table 1).
-
-#- manual calculation of the degrees of freedom I expect to have.
-
-#T = number of timepoints. w= number of warming treatments. c= number of replicate chambers within each treatment
-
-# Source                df calculation               df  
-# Warming                  w-1                        1
-# chamber(Warming)         w(c-1)                    10   # this is the random whole-plot error term to test warming main effect
-# Time                    (T-1)                     254   # in this case I have 255 timepoints
-# Time*Warming             (T-1)*(w-1)              254
-# Time*chamber[warming]  (T-1)*(c-1)*w             2540  # this is the random sub-plot error term. it's the same as the residual
-                                                         #, as there is no sub-replication here.. 254*5*2
-
-#- note the random sub-plot error term will actually have fewer df than this, as I am excluding the drought data
-
-
-
-dat <- subset(cue.day,select=c("Date","T_treatment","Water_treatment","chamber","CUE","RtoA","GPP_la","Ra_la","PAR","leafArea"))
-dat2 <- subset(dat,Water_treatment=="control")
-dat2$T_treatment <- as.factor(dat2$T_treatment)
-dat2$DateFac <- as.factor(dat2$Date)
-
-
-#- create "Explicitly nested" random factors. These will become the error terms in the ANOVA
-dat2$plotEN <- with(dat2,interaction(T_treatment,chamber))
-dat2$dateEN <- with(dat2,interaction(DateFac,plotEN)) #- this doesn't make a difference. It's the same as the residual
-
-#####
-#- Ra
-
-#- find the "right" Box-Cox transformation for Ra_la
-sp.Ra.simple <- lm(Ra_la~T_treatment*DateFac,data=dat2)
-value.r <- boxcox(object=sp.Ra.simple,lambda=seq(-1,0,1/20))
-exponent.r <- value.r$x[which.max(value.r$y)]
-dat2$Ra_latrans <- with(dat2,Ra_la^exponent.r)
-
-#- compare models with and without autocorrelation
-sp.ra <- lme(Ra_latrans~T_treatment*DateFac,random=list(~1|chamber),
-              weights=varIdent(form=~1|T_treatment),data=dat2,method="ML")
-sp.ra.ar1 <- update(sp.ra,correlation=corAR1(0.7,form=~1|chamber),method="ML")
-AIC(sp.ra,sp.ra.ar1)
-anova(sp.ra,sp.ra.ar1) # model with autocorrelation is immensely better!
-
-#- refit best model with REML
-sp.ra.ar1.reml <- update(sp.ra.ar1,method="REML")
-
-#look at model diagnostics
-plot(sp.ra.ar1,resid(.,type="p")~fitted(.) | T_treatment,abline=0)   #resid vs. fitted for each treatment
-plot(sp.ra.ar1,Ra_latrans~fitted(.)|chamber,abline=c(0,1))           #predicted vs. fitted for each chamber
-plot(sp.ra.ar1,Ra_latrans~fitted(.),abline=c(0,1))                   #predicted vs. fitted
-qqnorm(sp.ra.ar1, ~ resid(., type = "p"), abline = c(0, 1))          #qqplot. Departure at high values.
-anova(sp.ra.ar1)
-
-
-
-#- compare models with and without interaction terms
-sp.ra.ar1.noint <- update(sp.ra.ar1,.~.-T_treatment:DateFac)
-AIC(sp.ra.ar1,sp.ra.ar1.noint) # dropping the interaction results in a more parsimonious model
-
-#- get pseudo r2 values
-summary(lm(sp.ra.ar1$data$Ra_latrans~sp.ra.ar1$fitted))$r.squared       # pseudo r2 for full model
-summary(lm(sp.ra.ar1$data$Ra_latrans~sp.ra.ar1.noint$fitted))$r.squared # pseudo r2 for model without interaction
-
-#- Warming by date interaction is "significant" for Ra_la, but excluding it only drops the pseudo r2 from 0.92 to 0.89.
-#- Therefore the warming by date interaction is not actually that important in a quantatiative sense.
-####
-
-
-
-
-
-
-####
-#- GPP
-sp.gpp <- lme(GPP_la~T_treatment*DateFac,random=list(~1|chamber),
-              weights=varIdent(form=~1|T_treatment),data=dat2,method="ML")
-sp.gpp.ar1 <- update(sp.gpp,correlation=corAR1(0.7,form=~1|chamber),method="ML")
-AIC(sp.gpp,sp.gpp.ar1)
-anova(sp.gpp,sp.gpp.ar1) # model with autocorrelation is immensely better!
-
-#- refit best model with REML
-sp.gpp.ar1.reml <- update(sp.gpp.ar1,method="REML")
-
-#look at model diagnostics
-plot(sp.gpp.ar1.reml,resid(.,type="p")~fitted(.) | T_treatment,abline=0)   #resid vs. fitted for each treatment
-plot(sp.gpp.ar1.reml,GPP_la~fitted(.)|chamber,abline=c(0,1))               #predicted vs. fitted for each chamber
-plot(sp.gpp.ar1.reml,GPP_la~fitted(.),abline=c(0,1))                       #predicted vs. fitted
-qqnorm(sp.gpp.ar1.reml, ~ resid(., type = "p"), abline = c(0, 1))          #qqplot
-hist(sp.gpp.ar1.reml$residuals)
-anova(sp.gpp.ar1.reml)
-lsmeans(sp.gpp.ar1.reml,"T_treatment")
-
-#- compare models with and without interaction terms
-sp.gpp.ar1.noint <- update(sp.gpp.ar1,.~.-T_treatment:DateFac)
-anova(sp.gpp.ar1,sp.gpp.ar1.noint) # dropping the interaction results in a poorer model
-
-#- get pseudo r2 values
-summary(lm(sp.gpp.ar1$data$GPP_la~sp.gpp.ar1$fitted))$r.squared       # pseudo r2 for full model
-summary(lm(sp.gpp.ar1$data$GPP_la~sp.gpp.ar1.noint$fitted))$r.squared # pseudo r2 for model without interaction
-
-#- so the interaction between T_treatment and date is "significant" for GPP, but it's not very important
-####
-
-
-
-
-
-
-
-#####
-#- Ra/GPP
-
-#- find the "right" box-cox transformation
-sp.CUE.simple <- lm(RtoA~T_treatment*DateFac,data=dat2)
-value <- boxcox(object=sp.CUE.simple,lambda=seq(0,1,1/20))
-exponent.cue <- value$x[which.max(value$y)]
-  
-dat2$RtoAtrans <- with(dat2,RtoA^exponent.cue) # get the "best" transformation 
-
-#- compare models with and without autocorrelation
-sp.cue <- lme(RtoAtrans~T_treatment*DateFac,random=list(~1|chamber),
-              weights=varIdent(form=~1|T_treatment),data=dat2,method="ML")
-sp.cue.ar1 <- update(sp.cue,correlation=corAR1(0.7,form=~1|chamber),method="ML")
-AIC(sp.cue,sp.cue.ar1)
-anova(sp.cue,sp.cue.ar1) # model with autocorrelation is immensely better!
-
-
-#- refit best model with REML
-sp.cue.ar1.reml <- update(sp.cue.ar1,method="REML")
-
-#look at model diagnostics
-plot(sp.cue.ar1.reml,resid(.,type="p")~fitted(.) | T_treatment,abline=0)   #resid vs. fitted for each treatment
-plot(sp.cue.ar1.reml,RtoAtrans~fitted(.)|chamber,abline=c(0,1))            #predicted vs. fitted for each chamber
-plot(sp.cue.ar1.reml,RtoAtrans~fitted(.),abline=c(0,1))                    #predicted vs. fitted
-qqnorm(sp.cue.ar1.reml, ~ resid(., type = "p"), abline = c(0, 1))          #qqplot. Departure at both ends
-hist(sp.cue.ar1.reml$residuals)
-
-anova(sp.cue.ar1.reml)
-lsmeans(sp.cue.ar1.reml,"T_treatment") 
-
-#- compare models with and without interaction terms
-sp.cue.ar1.noint <- update(sp.cue.ar1,.~.-T_treatment:DateFac)
-anova(sp.cue.ar1,sp.cue.ar1.noint) # dropping the interaction results in a more parsimonious model
-
-#- get pseudo r2 values
-summary(lm(sp.cue.ar1$data$RtoAtrans~sp.cue.ar1$fitted))$r.squared       # pseudo r2 for full model
-summary(lm(sp.cue.ar1$data$RtoAtrans~sp.cue.ar1.noint$fitted))$r.squared # pseudo r2 for model without interaction
-
-#- so the model without the warming by date interaction is more parsimonious and drops the pseudo r2 from 0.93 to 0.91
-####
-
-
-
-
-
-
-
-
-
-#- merge models together to make Table 1
-table.r1 <- as.matrix(anova(sp.cue.ar1.reml))
-table.r2 <- cbind(table.r1,as.matrix(anova(sp.gpp.ar1.reml))[1:4,3:4])
-table1 <- cbind(table.r2,as.matrix(anova(sp.cue.ar1.reml))[1:4,3:4])[2:4,]
-
-
-
-####
-#-- analysis of just the exceedingly hot days
-hotDates <- unique(dat.hr.p[which(dat.hr.p$Tair_al>40),"Date"]) # find dates with temperatures exceeding 40
-dat.hr.p.hot <- subset(dat.hr.p,Date %in% hotDates)
-
-#- daily climate metrics
-hotDates_met <- summaryBy(Tair_al~T_treatment+Date,data=dat.hr.p.hot,FUN=c(mean,min,max),na.rm=T)
-summaryBy(Tair_al.max~T_treatment,data=hotDates_met) # average maximum temperature on these hot dates
-
-#- re-analyze on hot dates only
-sp.CUE.hot <- lme(RtoA~T_treatment*DateFac,random=list(~1|chamber),data=subset(dat2,Date %in% hotDates),
-              #corr=corAR1(value=0.1,form=~1|chamber)
-)
-
-#look at model diagnostics
-plot(sp.CUE.hot,resid(.,type="p")~fitted(.) | T_treatment,abline=0)   #resid vs. fitted for each treatment
-plot(sp.CUE.hot,RtoA~fitted(.)|chamber,abline=c(0,1))         #predicted vs. fitted for each species
-plot(sp.CUE.hot,RtoA~fitted(.),abline=c(0,1))              #predicted vs. fitted
-qqnorm(sp.CUE.hot, ~ resid(., type = "p"), abline = c(0, 1))     #qqplot
-anova(sp.CUE.hot)
-lsmeans(sp.CUE.hot,"T_treatment") 
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
