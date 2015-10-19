@@ -32,7 +32,7 @@ plotCUE_conceptual_fig <- function(toexport=T,Tdew=10,Ca=400,Vcmax=100,Jmax=125,
   #- plot
   windows(20,40);par(mfrow=c(2,1),mar=c(2,7,1,1),oma=c(3,0,2,0),xpd=F,las=1)
   plot(AGROSS~Tleaf,data=output,type="l",ylab="",cex.lab=1.4,ylim=c(0,23),
-       col="forestgreen",lwd=2,axes=F)
+       col="forestgreen",lwd=2,xaxt="n",yaxt="n")
   magaxis(side=c(1,2,4),labels=c(1,1,0),frame.plot=T,majorn=3)
   title(ylab=expression(atop(Leaf~CO[2]~exchange,
                              (mu*mol~CO[2]~m^-2~s^-1))),cex.lab=1.3)
@@ -42,7 +42,7 @@ plotCUE_conceptual_fig <- function(toexport=T,Tdew=10,Ca=400,Vcmax=100,Jmax=125,
   legend(x=12,y=27,xpd=NA,legend=c("A","R"),lwd=2,col=c("forestgreen","red"),ncol=2,bty="n")
   legend("topleft","a",cex=1.1,bty="n",inset=-0.05)
   
-  plot(RtoA~output$Tleaf,type="l",ylab="",ylim=c(0,0.6),cex.lab=1.3,lwd=2,col="black",axes=F)
+  plot(RtoA~output$Tleaf,type="l",ylab="",ylim=c(0,0.6),cex.lab=1.3,lwd=2,col="black",xaxt="n",yaxt="n")
   magaxis(side=c(1,2,4),labels=c(1,1,0),frame.plot=T,majorn=3)
   title(ylab=expression(R/A),cex.lab=1.3)
   
@@ -107,12 +107,12 @@ return.leaks <- function(plotson=0){
   #------------------------------------------------------------------------------------------------------------------
   #subset the data for the first night
   dat1 <- subset(dat,datetime>starttime1&datetime<endtime1)
-  dat1 <- merge(ref.i,dat1,by="datetime")
-  dat1 <- subset(dat1,chamber<=4) #only the first four chambers were leak tested on the first day
+  dat1 <- suppressWarnings(merge(ref.i,dat1,by="datetime"))
+  dat1 <- suppressWarnings(subset(dat1,chamber<=4)) #only the first four chambers were leak tested on the first day
   
   #subset the data for the second night
   dat2 <- subset(dat,datetime>starttime2&datetime<endtime2)
-  dat2 <- merge(ref.i,dat2,by="datetime")
+  dat2 <- suppressWarnings(merge(ref.i,dat2,by="datetime"))
   
   
   
@@ -145,8 +145,8 @@ return.leaks <- function(plotson=0){
   for (i in 1:length(dat1.list)){
     dat <- dat1.list[[i]]
     
-    out1[i] <- optimise(f=leak.mod,interval=c(0,0.5),V=60,Ca=dat$CO2ref,Ci=dat$CO2L,fit=1) # volume was 30, changed to 60
-    #pred[i] <- leak.mod(theta=out1[[i]][1],V=30,Ca=dat$CO2ref,Ci=dat$CO2L,fit=0)
+    out1[i] <- suppressWarnings(optimise(f=leak.mod,interval=c(0,0.5),V=60,Ca=dat$CO2ref,Ci=dat$CO2L,fit=1))
+    
   }
   
   print("Fitting the model to estimate leak parameters for the second day of measurements...")
@@ -159,8 +159,7 @@ return.leaks <- function(plotson=0){
   for (i in 1:length(dat2.list)){
     dat <- dat2.list[[i]]
     
-    out2[i] <- optimise(f=leak.mod,interval=c(0,0.5),V=30,Ca=dat$CO2ref,Ci=dat$CO2L,fit=1)
-    #pred[i] <- leak.mod(theta=out[[i]][1],V=30,Ca=dat$CO2ref,Ci=dat$CO2L,fit=0)
+    out2[i] <- suppressWarnings(optimise(f=leak.mod,interval=c(0,0.5),V=30,Ca=dat$CO2ref,Ci=dat$CO2L,fit=1))
   }
   
   leaks_day1 <- data.frame(theta=do.call(rbind,out1))
@@ -226,17 +225,12 @@ return.leaks <- function(plotson=0){
 return_Rcanopy_closed <- function(){
 
   # get the leak parameter for each chamber. This will be used later to estimate the rate of respiration
-  leaks <- return.leaks(plotson=0)
+  leaks <- suppressWarnings(return.leaks(plotson=0))
   
   #------------------------------------------------------
   #------------------------------------------------------
   #------------------------------------------------------
   #read in the minutely IRGA data, including a local IRGA (CO2L) and a central LI7000 (CO2CConc)
-  # I manually removed the reference data from these files, sot that they could be read into R
-  # These data were measured from 7pm (CPU time) on 11 Feb 14 until ~4:30am on 12 Feb 14
-  #Min1 <- read.csv("./data/Rtree/Min140212_noref_day2.csv")
-  #Min2 <- read.csv("./data/Rtree/Min140213_noref.csv")
-  
   Min1 <- read.csv("data/Min140212.csv")
   Min2 <- read.csv("data/Min140213.csv")
   
@@ -380,8 +374,7 @@ return_Rcanopy_closed <- function(){
   }
   fits <- do.call(rbind,fits1)
   fits$mol_m3 <- 44.6 #(1*1000)/(0.0821*(273.15+fits$Tair))# calculate the mols of gas per m3 via pv=nrt. Remember 1m3 = 1000L. Assuming P = 1 atm
-  # chamber 7 at 22 is a problem, as is ch1 at 25
-  
+
   
   
   
@@ -434,7 +427,7 @@ return_Rcanopy_closed <- function(){
 #----------------------------------------------------------------------------------------------------------------
 #----------------------------------------------------------------------------------------------------------------
 #- plot figure 2 (R vs. T curves at leaf and whole canopy scales)
-plotRvsT_figure2 <- function(rvt.c=rvt.c,fits.mass=fits.mass,fits.trt=fits.trt,export=T){
+plotRvsT_figure2 <- function(fits.mass=fits.mass,fits.trt=fits.trt,export=T){
   palette(c("black","red"))
   
   #--------------------------------------------------------------------------------------------------------
@@ -523,7 +516,7 @@ plotRvsT_figure2 <- function(rvt.c=rvt.c,fits.mass=fits.mass,fits.trt=fits.trt,e
   xlims=c(15,42)
   
   # #- plot AREA BASED leaf R over T for the first date of high resolution T-response curves
-  plotBy(Rarea.mean~Tleaf_bin_mid|Treat,data=rvt.treat.bin,axes=F,
+  plotBy(Rarea.mean~Tleaf_bin_mid|Treat,data=rvt.treat.bin,xaxt="n",yaxt="n",
          ylab=expression(atop(R[leaf],
                               (mu*mol~CO[2]~m^-2~s^-1))),col=c("black","red"),pch=15,
          xlim=xlims,ylim=c(0,4),type="p",lwd=3,cex=1.6,xlab="",cex.lab=1.6,legend=F,
@@ -534,7 +527,7 @@ plotRvsT_figure2 <- function(rvt.c=rvt.c,fits.mass=fits.mass,fits.trt=fits.trt,e
   lines(x=xvals_Rleaf,y=predRleafE,col="red",lwd=2)
   
     #- plot raw T-response curves
-  plotBy(Rcanopy_umol.mean~Tair.mean|T_treatment,data=fits.trt,type="p",xlim=xlims,ylim=c(0,30),pch=15,cex=1.6,cex.lab=1.6,axes=F,
+  plotBy(Rcanopy_umol.mean~Tair.mean|T_treatment,data=fits.trt,type="p",xlim=xlims,ylim=c(0,30),pch=15,cex=1.6,cex.lab=1.6,xaxt="n",yaxt="n",
          ylab=expression(atop(R[canopy],
                               (mu*mol~CO[2]~s^-1))),xlab="",legend=F,
          panel.first=adderrorbars(x=fits.trt$Tair.mean,y=fits.trt$Rcanopy_umol.mean,SE=fits.trt$Rcanopy_umol.standard.error,direction="updown"))
@@ -544,7 +537,7 @@ plotRvsT_figure2 <- function(rvt.c=rvt.c,fits.mass=fits.mass,fits.trt=fits.trt,e
   legend("bottomright","b",bty="n",inset=0.02,cex=1.5)
   
   #- plot respiration per unit leaf area
-  plotBy(R_la.mean~Tair.mean|T_treatment,data=fits.trt,type="p",pch=15,ylim=c(0,2.5),xlim=xlims,cex=1.6,cex.lab=1.6,legend=F,axes=F,
+  plotBy(R_la.mean~Tair.mean|T_treatment,data=fits.trt,type="p",pch=15,ylim=c(0,2.5),xlim=xlims,cex=1.6,cex.lab=1.6,legend=F,xaxt="n",yaxt="n",
          ylab=expression(atop(R["canopy, area"],
                               (mu*mol~CO[2]~m^-2~s^-1))),xlab=expression(T[air]~(degree*C)),
          panel.first=adderrorbars(x=fits.trt$Tair.mean,y=fits.trt$R_la.mean,SE=fits.trt$R_la.standard.error,direction="updown"))
@@ -585,7 +578,7 @@ plotRleafRbranch <- function(export=T){
   par(mfrow=c(1,2),mar=c(5,3,3,1),oma=c(1,4,0,0),cex.lab=2.5,las=1,cex.axis=1.8,cex.lab=2)
   
   #- plot leaves
-  barplot2(height=R1.m$Rleaf.mean,plot.ci=T,ci.l=R1.m$Rleaf.cil,ci.u=R1.m$Rleaf.ciu,axes=F,ci.width=0.2,col=c("darkgrey","red"),
+  barplot2(height=R1.m$Rleaf.mean,plot.ci=T,ci.l=R1.m$Rleaf.cil,ci.u=R1.m$Rleaf.ciu,xaxt="n",yaxt="n",ci.width=0.2,col=c("darkgrey","red"),
            names.arg=c("A","W"),ylim=c(0,4))
   legend("topright","a",bty="n",inset=-0.002,cex=1.5)
   magaxis(side=c(2,4),labels=c(1,0),frame.plot=T)
@@ -593,7 +586,7 @@ plotRleafRbranch <- function(export=T){
   title(xlab="Treatment",outer=F,line=3)
   
   #- plot branches
-  barplot2(height=R1.m$Rbranch.mean,plot.ci=T,ci.l=R1.m$Rbranch.cil,ci.u=R1.m$Rbranch.ciu,axes=F,ci.width=0.2,col=c("darkgrey","red"),
+  barplot2(height=R1.m$Rbranch.mean,plot.ci=T,ci.l=R1.m$Rbranch.cil,ci.u=R1.m$Rbranch.ciu,xaxt="n",yaxt="n",ci.width=0.2,col=c("darkgrey","red"),
            names.arg=c("A","W"),ylim=c(0,2))
   magaxis(side=c(2,4),labels=c(1,0),frame.plot=T)
   legend("topright","b",bty="n",inset=-0.002,cex=1.5)
@@ -761,21 +754,21 @@ plotPartitionedFluxes <- function(dat.hr.gf3=dat.hr.gf3,ch_toplot="C07",startDat
   windows(30,15);par(cex.lab=1.5,mar=c(0,0,0,0),oma=c(7,7,2,2),cex.axis=1.5,las=1)
   layout(matrix(c(1,2,3), 3, 1, byrow = TRUE), 
          widths=c(1,1,1), heights=c(1,1,3))
-  plotBy(PAR~DateTime,axes=F,data=subset(dat.hr.gf3,chamber==ch_toplot & as.Date(DateTime)>=startDate & 
+  plotBy(PAR~DateTime,xaxt="n",yaxt="n",data=subset(dat.hr.gf3,chamber==ch_toplot & as.Date(DateTime)>=startDate & 
                                               as.Date(DateTime)<=endDate),ylab="PAR",lty=1,ylim=c(0,2000),type="l",legend=F,col="black")
   magaxis(side=c(2,4),labels=c(1,0),frame.plot=T)
   mtext(text="PAR",side=2,outer=F,line=4,cex=1.5,las=0)
-  plotBy(Tair_al~DateTime,axes=F,data=subset(dat.hr.gf3,chamber==ch_toplot & as.Date(DateTime)>=as.Date("2014-3-22") & 
+  plotBy(Tair_al~DateTime,xaxt="n",yaxt="n",data=subset(dat.hr.gf3,chamber==ch_toplot & as.Date(DateTime)>=as.Date("2014-3-22") & 
                                                   as.Date(DateTime)<=as.Date("2014-3-27")),ylab="Tair",lty=1,ylim=c(11,34),type="l",legend=F,col="black")
   magaxis(side=c(2,4),labels=c(1,0),frame.plot=T)
   mtext(text="Air T",side=2,outer=F,line=4,cex=1.5,las=0)
   
   
-  plotBy(GPP~DateTime,axes=F,data=subset(dat.hr.gf3,chamber==ch_toplot & as.Date(DateTime)>=startDate & 
+  plotBy(GPP~DateTime,xaxt="n",yaxt="n",data=subset(dat.hr.gf3,chamber==ch_toplot & as.Date(DateTime)>=startDate & 
                                               as.Date(DateTime)<=endDate),ylab="CO2 flux (g hr-1)",pch=16,cex=2,ylim=c(-2,10),type="b",legend=F,col="green")
-  plotBy(Ra_est~DateTime,axes=F,data=subset(dat.hr.gf3,chamber==ch_toplot & as.Date(DateTime)>=startDate & 
+  plotBy(Ra_est~DateTime,xaxt="n",yaxt="n",data=subset(dat.hr.gf3,chamber==ch_toplot & as.Date(DateTime)>=startDate & 
                                                  as.Date(DateTime)<=endDate),pch=16,col="red",type="b",cex=2,add=T,legend=F)
-  plotBy(FluxCO2_g~DateTime,axes=F,data=subset(dat.hr.gf3,chamber==ch_toplot & as.Date(DateTime)>=startDate & 
+  plotBy(FluxCO2_g~DateTime,xaxt="n",yaxt="n",data=subset(dat.hr.gf3,chamber==ch_toplot & as.Date(DateTime)>=startDate & 
                                                     as.Date(DateTime)<=endDate),type="b",pch=16,col="black",cex=2,add=T,legend=F)
   magaxis(side=c(2,4),labels=c(1,0),frame.plot=T)
   
@@ -882,7 +875,7 @@ plotPAR_AirT_CUE_GPP_Ra <- function(cue.day.trt=cue.day.trt,export=F,lwidth=2.5)
   #plot temperature
   plotBy(Tair_24hrs.mean~Date|T_treatment,data=subset(cue.day.trt,Water_treatment=="control"),cex=1,pch=16,legend=F,type="l",
          ylim=c(12,45),
-         ylab="",cex.lab=1.5,lwd=3,axes=F)
+         ylab="",cex.lab=1.5,lwd=3,xaxt="n",yaxt="n")
   mtext(expression(atop(T[air],
                         (degree*C))),side=2,las=0,cex=1.2,line=3)
   legend("topleft",c("A","W"),lty=c(1,1),lwd=3,col=c("black","red"),ncol=2,bty="n",seg.len=3,cex=1.2)
@@ -895,7 +888,7 @@ plotPAR_AirT_CUE_GPP_Ra <- function(cue.day.trt=cue.day.trt,export=F,lwidth=2.5)
   #-overlay par
   par(new=T)
   plot(PAR.mean~Date,type="l",data=subset(cue.day.trt,Water_treatment=="control" & T_treatment=="ambient"),
-       ylim=c(-40,70),col="grey",lwd=2,axes=FALSE,add=T)
+       ylim=c(-40,70),col="grey",lwd=2,xaxt="n",yaxt="n")
   magaxis(side=4,labels=F)
   axis(side=4,at=c(0,20,40,60),tick=F)
   mtext(expression(atop(PAR,
@@ -906,7 +899,7 @@ plotPAR_AirT_CUE_GPP_Ra <- function(cue.day.trt=cue.day.trt,export=F,lwidth=2.5)
   
   #-- plot Ra per unit leaf area
   plotBy(Ra_la.mean~Date|T_treatment,data=subset(cue.day.trt,Water_treatment=="control"),cex=1,pch=16,legend=F,type="l",ylim=c(0.25,2.8),
-         ylab="Ra (gC d-1)",cex.lab=1.5,lwd=3,axes=F)
+         ylab="Ra (gC d-1)",cex.lab=1.5,lwd=3,xaxt="n",yaxt="n")
   a <- subset(cue.day.trt,T_treatment=="ambient")
   e <- subset(cue.day.trt,T_treatment=="elevated")
   adderrorbars(x=a$Date-0.25,y=a$Ra_la.mean,SE=a$Ra_la.standard.error,direction="updown",barlen=0,col="black")
@@ -924,7 +917,7 @@ plotPAR_AirT_CUE_GPP_Ra <- function(cue.day.trt=cue.day.trt,export=F,lwidth=2.5)
   
   #-- plot GPP per unit leaf area
   plotBy(GPP_la.mean~Date|T_treatment,data=subset(cue.day.trt,Water_treatment=="control"),cex=1,pch=16,legend=F,type="l",ylim=c(0.5,7.7),
-         ylab="",cex.lab=1.5,lwd=3,axes=F)
+         ylab="",cex.lab=1.5,lwd=3,xaxt="n",yaxt="n")
   a <- subset(cue.day.trt,T_treatment=="ambient")
   e <- subset(cue.day.trt,T_treatment=="elevated")
   adderrorbars(x=a$Date-.25,y=a$GPP_la.mean,SE=a$GPP_la.standard.error,direction="updown",barlen=0,col="black")
@@ -943,7 +936,7 @@ plotPAR_AirT_CUE_GPP_Ra <- function(cue.day.trt=cue.day.trt,export=F,lwidth=2.5)
 
   #-- plot RtoA
   plotBy(RtoA.mean~Date|T_treatment,data=subset(cue.day.trt,Water_treatment=="control"),cex=1,pch=16,legend=F,type="l",ylim=c(0,1),
-         ylab="",cex.lab=1.5,lwd=1,axes=F)
+         ylab="",cex.lab=1.5,lwd=1,xaxt="n",yaxt="n")
   a <- subset(cue.day.trt,T_treatment=="ambient")
   e <- subset(cue.day.trt,T_treatment=="elevated")
   adderrorbars(x=a$Date-0.25,y=a$RtoA.mean,SE=a$RtoA.standard.error,direction="updown",barlen=0,col="black")
@@ -959,7 +952,7 @@ plotPAR_AirT_CUE_GPP_Ra <- function(cue.day.trt=cue.day.trt,export=F,lwidth=2.5)
   legend("bottomright","d",bty="n",inset=-0.002,cex=1.5)
   
 
-  if(export==T) dev.copy2pdf(file="Output/Figure4.pdf")
+  if(export==T) dev.copy2pdf(file="output/Figure4.pdf")
 }
 #--------------------------------------------------------------------------------------------------
 
@@ -980,7 +973,7 @@ plotGPP_Ra_CUE_metdrivers <- function(cue.day=cue.day,export=T,shading=0.5,parcu
   smoothplot(PAR, GPP_la, T_treatment,polycolor=c(alpha("lightgrey",shading),alpha("lightgrey",shading)),
              random="chamber",
              ylim=c(0.5,9),
-             data=cue.day, kgam=5, axes=FALSE)
+             data=cue.day, kgam=5, axes=F)
   title(ylab=expression(GPP~(gC~m^-2~d^-1)),outer=T,adj=0.95)
   magaxis(side=1:4,labels=c(0,1,0,0))
   legend("topright","a",bty="n",inset=-0.01,cex=1.2)
@@ -988,7 +981,7 @@ plotGPP_Ra_CUE_metdrivers <- function(cue.day=cue.day,export=T,shading=0.5,parcu
   smoothplot(Tair_24hrs, GPP_la, T_treatment,polycolor=c(alpha("lightgrey",shading),alpha("lightgrey",shading)),
              random="chamber",
              ylim=c(0.5,9),
-             data=subset(cue.day,PAR>parcut), kgam=5, axes=FALSE)
+             data=subset(cue.day,PAR>parcut), kgam=5,axes=F)
   magaxis(side=1:4,labels=c(0,0,0,0))
   legend("topright","b",bty="n",inset=0.01,cex=1.2)
   title(ylab=expression(GPP~(gC~m^-2~d^-1)),outer=T,adj=0.95)
@@ -999,7 +992,7 @@ plotGPP_Ra_CUE_metdrivers <- function(cue.day=cue.day,export=T,shading=0.5,parcu
   smoothplot(PAR, Ra_la, T_treatment,polycolor=c(alpha("lightgrey",shading),alpha("lightgrey",shading)),
              random="chamber",
              ylim=c(0.2,4),
-             data=cue.day, kgam=5, axes=FALSE)
+             data=cue.day, kgam=5, axes=F)
   title(ylab=expression(R[a]~(gC~m^-2~d^-1)),outer=T,adj=0.5)
   magaxis(side=1:4,labels=c(0,1,0,0))
   legend("topright","c",bty="n",inset=-0.01,cex=1.2)
@@ -1007,7 +1000,7 @@ plotGPP_Ra_CUE_metdrivers <- function(cue.day=cue.day,export=T,shading=0.5,parcu
   smoothplot(Tair_24hrs, Ra_la, T_treatment,polycolor=c(alpha("lightgrey",shading),alpha("lightgrey",shading)),
              random="chamber",
              ylim=c(0.2,4),
-             data=subset(cue.day,PAR>parcut), kgam=5, axes=FALSE)
+             data=subset(cue.day,PAR>parcut), kgam=5, axes=F)
   magaxis(side=1:4,labels=c(0,0,0,0))
   legend("topright","d",bty="n",inset=0.01,cex=1.2)
   title(ylab=expression(R[a]~(gC~m^-2~d^-1)),outer=T,adj=0.5)
@@ -1018,7 +1011,7 @@ plotGPP_Ra_CUE_metdrivers <- function(cue.day=cue.day,export=T,shading=0.5,parcu
   smoothplot(PAR, RtoA, T_treatment,polycolor=c(alpha("lightgrey",shading),alpha("lightgrey",shading)),
              random="chamber",
              ylim=c(0,1),
-             data=cue.day, kgam=5, axes=FALSE)
+             data=cue.day, kgam=5, axes=F)
   title(ylab=expression(R[a]/GPP),outer=T,adj=0.15)
   magaxis(side=1:4,labels=c(1,1,0,0))
   legend("topright","e",bty="n",inset=-0.01,cex=1.2)
@@ -1026,7 +1019,7 @@ plotGPP_Ra_CUE_metdrivers <- function(cue.day=cue.day,export=T,shading=0.5,parcu
   smoothplot(Tair_24hrs, RtoA, T_treatment,polycolor=c(alpha("lightgrey",shading),alpha("lightgrey",shading)),
              random="chamber",
              ylim=c(0,1),
-             data=subset(cue.day,PAR>parcut), kgam=5, axes=FALSE)
+             data=subset(cue.day,PAR>parcut), kgam=5, axes=F)
   magaxis(side=1:4,labels=c(1,0,0,0))
   legend("topright","f",bty="n",inset=0.01,cex=1.2)
   title(ylab=expression(R[a]/GPP),outer=T,adj=0.15)
@@ -1142,7 +1135,7 @@ smoothplot <- function(x,y,g=NULL,data,
     
   }
   
-  with(data, plot(X, Y, axes=FALSE, pch=16, col=pointcols[G],
+  with(data, plot(X, Y, xaxt="n",yaxt="n", pch=16, col=pointcols[G],
                   xlab=xlab, ylab=ylab, ...))
   
   if(axes){
@@ -1321,7 +1314,7 @@ plotGPP_hex <- function(dat=dat.hr.p,export=F,shading=0.7){
   colors <- myColorRamp(c("blue","green","yellow", "red"), values)
   xloc <- rep(1,6)
   yloc <- c(1,2,3,4,5,6)
-  plot(yloc~xloc,pch=18,cex=5,col=colors,ylim=c(0,10),axes=F,xlab="",ylab="")
+  plot(yloc~xloc,pch=18,cex=5,col=colors,ylim=c(0,10),xaxt="n",yaxt="n",xlab="",ylab="")
   text(xloc+0.1,yloc,labels=values,cex=1.5)
   #dev.copy2pdf(file="/output/Figure6_legend.pdf")
   
@@ -1336,7 +1329,7 @@ plotGPP_hex <- function(dat=dat.hr.p,export=F,shading=0.7){
              linecol=c("black","red"),polycolor=c(alpha("lightgrey",shading),alpha("lightgrey",shading)),
              random="chamber",cex=1,main="",
              xlim=c(15,45),ylim=c(0,25),xlab="",ylab="",
-             data=toplot, kgam=4, axes=FALSE)
+             data=toplot, kgam=4,axes=F)
   legend("topright",pch=16,legend=c("ambient","warmed"),col=c(alpha("black",0.3),alpha("red",0.3)))
   box();axis(side=1,labels=T);axis(side=2,labels=T);axis(side=4,labels=F)
   if(export==T) dev.copy2pdf(file="output/Figure6c.pdf")
@@ -1389,7 +1382,7 @@ plotAnet_met_diurnals <- function(export=T,lsize=2,size=2,printANOVAs=F){
   for(i in 1:length(trtavgs.list)){
     toplot <- trtavgs.list[[i]]
     
-    plotBy(Photo.mean~Hour.mean|T_treatment,data=toplot,legend=F,pch=16,axes=F,type="b",cex=size,ylim=ylims,xlim=xlims,
+    plotBy(Photo.mean~Hour.mean|T_treatment,data=toplot,legend=F,pch=16,xaxt="n",yaxt="n",type="b",cex=size,ylim=ylims,xlim=xlims,
            panel.first=adderrorbars(x=toplot$Hour.mean,y=toplot$Photo.mean,SE=toplot$Photo.standard.error,direction="updown"))
     if(i==1) magaxis(side=c(1,2,3,4),labels=c(0,1,0,0),las=1)
     if(i >1 & i <5) magaxis(side=c(1,2,3,4),labels=c(0,0,0,0),las=1)
@@ -1408,7 +1401,7 @@ plotAnet_met_diurnals <- function(export=T,lsize=2,size=2,printANOVAs=F){
   for(i in 1:length(trtavgs.list)){
     toplot <- trtavgs.list[[i]]
     
-    plotBy(Cond.mean~Hour.mean|T_treatment,data=toplot,legend=F,pch=16,axes=F,type="b",cex=size,ylim=c(0,0.31),xlim=xlims,
+    plotBy(Cond.mean~Hour.mean|T_treatment,data=toplot,legend=F,pch=16,xaxt="n",yaxt="n",type="b",cex=size,ylim=c(0,0.31),xlim=xlims,
            panel.first=adderrorbars(x=toplot$Hour.mean,y=toplot$Cond.mean,SE=toplot$Cond.standard.error,direction="updown"))
     if(i==1) magaxis(side=c(1,2,3,4),labels=c(0,1,0,0),las=1)
     if(i >1 & i <5) magaxis(side=c(1,2,3,4),labels=c(0,0,0,0),las=1)
@@ -1424,7 +1417,7 @@ plotAnet_met_diurnals <- function(export=T,lsize=2,size=2,printANOVAs=F){
     toplot <- trtavgs.list[[i]]
     
     #- plot Tleaf in black and red
-    plotBy(Tleaf.mean~Hour.mean,data=subset(toplot,T_treatment=="ambient"),legend=F,pch=16,axes=F,type="l",col=c("black"),
+    plotBy(Tleaf.mean~Hour.mean,data=subset(toplot,T_treatment=="ambient"),legend=F,pch=16,xaxt="n",yaxt="n",type="l",col=c("black"),
            cex=size,ylim=c(0,45),xlim=xlims,lwd=lsize)
     if(i==1)magaxis(side=c(1,2,3,4),labels=c(1,1,0,0),las=1,col="black")
     
@@ -1436,14 +1429,14 @@ plotAnet_met_diurnals <- function(export=T,lsize=2,size=2,printANOVAs=F){
     
     #- plot PAR in blue
     par(new=T)
-    plotBy(PARi.mean~Hour.mean,data=subset(toplot,T_treatment=="ambient"),legend=F,pch=16,axes=F,type="l",col="blue",cex=size,ylim=c(0,2000),lwd=lsize,xlim=xlims)
+    plotBy(PARi.mean~Hour.mean,data=subset(toplot,T_treatment=="ambient"),legend=F,pch=16,xaxt="n",yaxt="n",type="l",col="blue",cex=size,ylim=c(0,2000),lwd=lsize,xlim=xlims)
     
     if(i==1)axis(2, ylim=c(0,8),lwd=1,line=1.8,col="blue",col.axis="blue",las=1)
     
     #- plot VPD in red
     par(new=T)
     plotBy(VpdL.mean~Hour.mean,data=subset(toplot,T_treatment=="ambient"),lty=1,lwd=lsize,
-           legend=F,pch=16,axes=F,type="l",col="red",cex=size,ylim=c(0,7),xlim=xlims)
+           legend=F,pch=16,xaxt="n",yaxt="n",type="l",col="red",cex=size,ylim=c(0,7),xlim=xlims)
     
     if(i==3)title(xlab="Hour",cex.lab=1.5,xpd=NA)
     if(i==1)axis(2, ylim=c(0,8),lwd=1,line=4.8,col="red",col.axis="red",las=1)
@@ -1473,7 +1466,7 @@ plotCUE_paritioning_method <- function(cue.day1=cue.day1,cue.day2=cue.day2,expor
   windows(30,12);par(mfrow=c(1,3),mar=c(5,6,1,1),cex.lab=1.5,cex.axis=1.3,las=1)
   
   # GPP
-  plot(cue.day2$GPP~cue.day1$GPP,axes=F,xlab="",ylab="",pch="+");abline(0,1)
+  plot(cue.day2$GPP~cue.day1$GPP,xaxt="n",yaxt="n",xlab="",ylab="",pch="+");abline(0,1)
   magaxis(side=1:4,labels=c(1,1,0,0),frame.plot=T)
   title(xlab=expression(GPP*","~no~light~inhibition),
         ylab=expression(GPP*","~with~light~inhibition))
@@ -1484,7 +1477,7 @@ plotCUE_paritioning_method <- function(cue.day1=cue.day1,cue.day2=cue.day2,expor
   legend("bottomright","a",cex=1.5,bty="n",inset=-0.002)
   
   # Ra
-  plot(cue.day2$Ra~cue.day1$Ra,axes=F,xlab="",ylab="",pch="+");abline(0,1)
+  plot(cue.day2$Ra~cue.day1$Ra,xaxt="n",yaxt="n",xlab="",ylab="",pch="+");abline(0,1)
   magaxis(side=1:4,labels=c(1,1,0,0),frame.plot=T)
   title(xlab=expression(Ra*","~no~light~inhibition),
         ylab=expression(Ra*","~with~light~inhibition))
@@ -1495,7 +1488,7 @@ plotCUE_paritioning_method <- function(cue.day1=cue.day1,cue.day2=cue.day2,expor
   legend("bottomright","b",cex=1.5,bty="n",inset=-0.002)
   
   # CUE
-  plot(cue.day2$RtoA~cue.day1$RtoA,axes=F,xlab="",ylab="",pch="+");abline(0,1)
+  plot(cue.day2$RtoA~cue.day1$RtoA,xaxt="n",yaxt="n",xlab="",ylab="",pch="+");abline(0,1)
   magaxis(side=1:4,labels=c(1,1,0,0),frame.plot=T)
   title(xlab=expression(R[a]/GPP*","~no~light~inhibition),
         ylab=expression(R[a]/GPP*","~with~light~inhibition))
@@ -1523,9 +1516,9 @@ plotCUE_paritioning_method <- function(cue.day1=cue.day1,cue.day2=cue.day2,expor
 #--------------------------------------------------------------------------------------------------
 #- plot CUE vs. T for the two paritioning methods (with and without light inibition of R)
 #- Creates Figure S4
-plotCUEvsT_partitioning_method <- function(cue.day1=cue.day1,cue.day2=cue.day2,export=T,shading=0.5){
+plotCUEvsT_partitioning_method <- function(cue.day1=cue.day,cue.day2=cue.day2,export=T,shading=0.5){
   
-  library(mgcv);library(scales)
+  
   palette(c("black","red"))
   
   windows(20,12);par(mfrow=c(1,2),cex.lab=1.5,mar=c(5,5,1,1),las=1)
@@ -1535,7 +1528,7 @@ plotCUEvsT_partitioning_method <- function(cue.day1=cue.day1,cue.day2=cue.day2,e
              pointcols=c(NA,NA),
              random="chamber",
              ylim=c(0,0.7),
-             data=subset(cue.day1,PAR>35), kgam=5, axes=FALSE,xlab="",ylab="")
+             data=subset(cue.day1,PAR>35), kgam=5, axes=F,xlab="",ylab="")
   magaxis(side=1:4,labels=c(1,1,0,0))
   title(xlab=expression(T[air]~(degree*C)),
         ylab=expression(R[a]/GPP))
@@ -1545,7 +1538,7 @@ plotCUEvsT_partitioning_method <- function(cue.day1=cue.day1,cue.day2=cue.day2,e
   smoothplot(Tair_24hrs, RtoA, T_treatment,polycolor=c(alpha("lightgrey",shading),alpha("lightgrey",shading)),
              random="chamber",pointcols=c(NA,NA),
              ylim=c(0,0.7),
-             data=subset(cue.day2,PAR>35), kgam=5, axes=FALSE,xlab="",ylab="")
+             data=subset(cue.day2,PAR>35), kgam=5, axes=F,xlab="",ylab="")
   magaxis(side=1:4,labels=c(1,1,0,0))
   title(xlab=expression(T[air]~(degree*C)),
         ylab=expression(R[a]/GPP))
@@ -1572,8 +1565,9 @@ plotVPD_Tair <- function(dat=dat.hr,export=F){
                                 PAR=mean(PAR,na.rm=T))
   
   
-  windows(20,30);par(cex.axis=1.5,cex.lab=2,mar=c(5,7,1,1))
+  windows(20,30);par(cex.axis=1.2,cex.lab=1.5,mar=c(5,7,1,1))
   plotBy(VPDair~Tair_al|T_treatment,col=c("black","red"),pch="+",data=toplot.hr,cex=0.5,xlim=c(2,47),ylim=c(0,8),
+         xaxt="n",yaxt="n",
          legend=F,ylab=("VPD (kPa)"),xlab=expression(T[air]~(degree*C)))
   Ts <- seq(3,42,length=101)
   RH10 <- RHtoVPD(RH=10, TdegC=Ts, Pa = 101)
@@ -1596,6 +1590,7 @@ plotVPD_Tair <- function(dat=dat.hr,export=F){
   textxy(X=xs,Y=ys,labs=labels,cex=0.9,offset=0)
   
   legend("topleft",pch=c("+","+",NA),lty=c(NA,NA,3),col=c("black","red","black"),legend=c("Ambient","Warmed","RH isolines"),bty="n")
+  magaxis(side=c(1,2,3,4),labels=c(1,1,0,0),xlab="",ylab="",las=1)
   
   if(export==T)dev.copy2pdf(file="Output/FigureS2.pdf")
 }
