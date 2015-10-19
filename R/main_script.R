@@ -13,6 +13,7 @@ library(nlme)
 library(lsmeans)
 library(car)
 library(data.table)
+library(calibrate)
 
 #- the following libraries aren't on CRAN, but can be installed from github or bitbucket with devtools
 library(devtools)
@@ -21,7 +22,7 @@ library(devtools)
 #install_github("jslefche/piecewiseSEM")
 library(piecewiseSEM) # for estimating r2 value in mixed-effects models
 library(plantecophys) # for modeling leaf-level gas exchange
-library(HIEv)         # is this needed?
+library(HIEv)         
 
 #- load the analysis and plotting functions that do all of the actual work
 source("R/functions.R")
@@ -87,7 +88,7 @@ dat.hr$Date <- as.Date(dat.hr$DateTime)
 #-  of prior nights to include for the estimate of the basal respiration rate (lagdates)
 dat.hr.p <- partitionHourlyFluxCUE_arr(dat.hr.gf=dat.hr,Ea=57.69,lagdates=3)
 
-#- plot an example week of partitioned fluxes
+#- plot an example week of partitioned fluxes (Figure S1)
 plotPartitionedFluxes(dat.hr.gf3=dat.hr.p,ch_toplot="C07",startDate="2014-3-22",endDate="2014-3-27",write=F)
 
 #- get daily sums
@@ -100,6 +101,13 @@ plotPAR_AirT_CUE_GPP_Ra(cue.day.trt=cue.day.trt,export=export,lwidth=2.75)
 
 #- plot PAR and Temperaure dependence of GPP, Ra, and Ra/GPP (Figure 5)
 plotGPP_Ra_CUE_metdrivers(cue.day=cue.day,export=export,shading=0.7)
+
+
+
+
+#- plot VPD and Tair dependence (Figure S2)
+plotVPD_Tair(dat=dat.hr,export=export)
+  
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
 
@@ -122,8 +130,28 @@ plotGPP_hex(dat=dat.hr.p,export=export,shading=0.7)
 
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
-#- Plot the 5 diurnal observations of leaf-level photosynthesis and stomatal conductance.
-#    Set printANOVAs to "T" to print ANOVAs for each date
+#- Plot the 5 diurnal observations of leaf-level photosynthesis and stomatal conductance (Figure 7).
+#    Set printANOVAs to "T" to print ANOVAs for each date.
 plotAnet_met_diurnals(export=export,lsize=2,printANOVAs=F)
+#-------------------------------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------
+
+
+
+#-------------------------------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------
+#- Does inhibition of respiration in the light affect the results?
+
+#- re-partition CO2 fluxes into Ra and GPP assuming R is reduced by 30% in the light
+dat.hr.p2 <- partitionHourlyFluxCUE_arr(dat.hr.gf=dat.hr,Ea=57.69,lagdates=3,leafRtoTotal = 1,leafRreduction=0.3)
+
+#- get daily sums again for light-inibited fluxes
+cue.list2 <- returnCUE.day(dat=dat.hr.p2) # get daily sums from hourly data
+cue.day2 <- cue.list2[[1]]                # extract chamber values on each day
+cue.day.trt2 <- cue.list2[[2]]            # extract treatment averages
+
+#- make plots comparing partitioning methods. (Figures S3-4)
+plotCUE_paritioning_method(cue.day,cue.day2,export=export)
+plotCUEvsT_partitioning_method(cue.day,cue.day2,export=export,shading=0.5)
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
