@@ -693,7 +693,7 @@ standard.error <- function(dat,na.rm=F,...){
 
 
 #----------------------------------------------------------------------------------------------------------------
-partitionHourlyFluxCUE_arr <- function(dat.hr.gf=dat.hr.gf,Ea=57.69,lagdates){
+partitionHourlyFluxCUE_arr <- function(dat.hr.gf=dat.hr.gf,Ea=57.69,lagdates,leafRtoTotal = 1,leafRreduction=0){
   rvalue = 8.134
   require(data.table)
   
@@ -736,6 +736,9 @@ partitionHourlyFluxCUE_arr <- function(dat.hr.gf=dat.hr.gf,Ea=57.69,lagdates){
   dat.hr.gf3 <- merge(dat.hr.gf,RTdat,by=c("Date","chamber"))
   #dat.hr.gf3$Ra_est <- with(dat.hr.gf3,R_Tref*Q10^((Tair_al-Tref)/10)) # estimate respiration rate. This is a negative number.
   dat.hr.gf3$Ra_est <- with(dat.hr.gf3,R_Tref*exp((Ea*1000/(rvalue*Tref_K))*(1-Tref_K/(Tair_al+273.15)))) # estimate respiration rate. This is a negative number.
+  dat.hr.gf3$Ra_est <- ifelse(dat.hr.gf3$period=="Day",
+                              dat.hr.gf3$Ra_est-leafRreduction*leafRtoTotal*dat.hr.gf3$Ra_est,
+                              dat.hr.gf3$Ra_est) # estimate respiration rate. This is a negative number. If it's day, subtract 30% from the leaf R fraction
   
 
   dat.hr.gf3$GPP <- ifelse(dat.hr.gf3$period=="Night",0,dat.hr.gf3$FluxCO2_g-dat.hr.gf3$Ra_est)
@@ -785,7 +788,7 @@ plotPartitionedFluxes <- function(dat.hr.gf3=dat.hr.gf3,ch_toplot="C07",startDat
   
   mtext(text="Date",side=1,outer=F,line=4,cex=1.5)
   
-  if(write==T){dev.copy2pdf(file="output/FigureS1_Flux_partioning_example.pdf")}
+  if(write==T){dev.copy2pdf(file="output/FigureS1.pdf")}
 }
 #----------------------------------------------------------------------------------------------------------------
 
@@ -1453,4 +1456,147 @@ plotAnet_met_diurnals <- function(export=T,lsize=2,size=2,printANOVAs=F){
   
   
   if(export==T)dev.copy2pdf(file="output/Figure7.pdf")
+}
+#--------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+#--------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------
+#- plot the relationship between GPP, Ra, and CUE for two partitioning methods (Figure S3)
+plotCUE_paritioning_method <- function(cue.day1=cue.day1,cue.day2=cue.day2,export=T){
+  
+  windows(30,12);par(mfrow=c(1,3),mar=c(5,6,1,1),cex.lab=1.5,cex.axis=1.3,las=1)
+  
+  # GPP
+  plot(cue.day2$GPP~cue.day1$GPP,axes=F,xlab="",ylab="",pch="+");abline(0,1)
+  magaxis(side=1:4,labels=c(1,1,0,0),frame.plot=T)
+  title(xlab=expression(GPP*","~no~light~inhibition),
+        ylab=expression(GPP*","~with~light~inhibition))
+  lm.gpp <- lm(cue.day2$GPP~cue.day1$GPP);abline(lm.gpp,lty=2)
+  legend("topleft",legend=paste("y = ",unname(round(coef(lm.gpp)[2],2)),"x",
+                                unname(round(coef(lm.gpp)[1],2)),
+                                sep=""),bty="n",cex=1.5)
+  legend("bottomright","a",cex=1.5,bty="n",inset=-0.002)
+  
+  # Ra
+  plot(cue.day2$Ra~cue.day1$Ra,axes=F,xlab="",ylab="",pch="+");abline(0,1)
+  magaxis(side=1:4,labels=c(1,1,0,0),frame.plot=T)
+  title(xlab=expression(Ra*","~no~light~inhibition),
+        ylab=expression(Ra*","~with~light~inhibition))
+  lm.Ra <- lm(cue.day2$Ra~cue.day1$Ra);abline(lm.Ra,lty=2)
+  legend("topleft",legend=paste("y = ",unname(round(coef(lm.Ra)[2],2)),"x","+",
+                                unname(round(coef(lm.Ra)[1],2)),
+                                sep=""),bty="n",cex=1.5)
+  legend("bottomright","b",cex=1.5,bty="n",inset=-0.002)
+  
+  # CUE
+  plot(cue.day2$RtoA~cue.day1$RtoA,axes=F,xlab="",ylab="",pch="+");abline(0,1)
+  magaxis(side=1:4,labels=c(1,1,0,0),frame.plot=T)
+  title(xlab=expression(R[a]/GPP*","~no~light~inhibition),
+        ylab=expression(R[a]/GPP*","~with~light~inhibition))
+  y <- cue.day2$RtoA
+  x <- cue.day1$RtoA
+  lm.CUE <- lm(y~x+I(x^2))
+  preds <- predict(lm.CUE,newdata=data.frame(x=seq(0,1,length.out=101)))
+  lines(x=seq(0,1,length.out=101),y=preds,lty=2)
+  legend("topleft",legend=paste("y = ",unname(round(coef(lm.CUE)[3],3)),expression(x^2),"+",
+                                unname(round(coef(lm.CUE)[2],3)),"x","+",
+                                unname(round(coef(lm.CUE)[1],3)),
+                                sep=""),bty="n",cex=1.5)
+  legend("bottomright","c",cex=1.5,bty="n",inset=-0.002)
+  if(export==T) dev.copy2pdf(file="Output/FigureS3.pdf")
+}
+#--------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+#--------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------
+#- plot CUE vs. T for the two paritioning methods (with and without light inibition of R)
+#- Creates Figure S4
+plotCUEvsT_partitioning_method <- function(cue.day1=cue.day1,cue.day2=cue.day2,export=T,shading=0.5){
+  
+  library(mgcv);library(scales)
+  palette(c("black","red"))
+  
+  windows(20,12);par(mfrow=c(1,2),cex.lab=1.5,mar=c(5,5,1,1),las=1)
+  
+  #- plot method 1; this should be with no light inhibition of leaf R
+  smoothplot(Tair_24hrs, RtoA, T_treatment,polycolor=c(alpha("lightgrey",shading),alpha("lightgrey",shading)),
+             pointcols=c(NA,NA),
+             random="chamber",
+             ylim=c(0,0.7),
+             data=subset(cue.day1,PAR>35), kgam=5, axes=FALSE,xlab="",ylab="")
+  magaxis(side=1:4,labels=c(1,1,0,0))
+  title(xlab=expression(T[air]~(degree*C)),
+        ylab=expression(R[a]/GPP))
+  legend("topright","a",bty="n",inset=-0.001,cex=1.2)
+  
+  #- plot method 2; this should be WITH light inhibition of leaf R
+  smoothplot(Tair_24hrs, RtoA, T_treatment,polycolor=c(alpha("lightgrey",shading),alpha("lightgrey",shading)),
+             random="chamber",pointcols=c(NA,NA),
+             ylim=c(0,0.7),
+             data=subset(cue.day2,PAR>35), kgam=5, axes=FALSE,xlab="",ylab="")
+  magaxis(side=1:4,labels=c(1,1,0,0))
+  title(xlab=expression(T[air]~(degree*C)),
+        ylab=expression(R[a]/GPP))
+  legend("topright","b",bty="n",inset=-0.001,cex=1.2)
+  if(export==T) dev.copy2pdf(file="Output/FigureS4.pdf")
+}
+#--------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------
+
+
+
+
+#--------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------
+#- plot the co-variance between air temperature and VPD (Figure S2)
+plotVPD_Tair <- function(dat=dat.hr,export=F){
+  
+  dat$RH <- VPDtoRH(dat.hr$VPDair, dat.hr$Tair_al, Pa = 101)
+  toplot <- subset(dat,RH>10 & PAR > 10) #- extract daytime values only, remove a few datapoints with questionable RH data
+  toplot$DateTime <- as.factor(toplot$DateTime)
+  toplot.hr <- dplyr::summarize(group_by(toplot,DateTime,T_treatment),
+                                Tair_al=mean(Tair_al,na.rm=T),
+                                VPDair=mean(VPDair,na.rm=T),
+                                PAR=mean(PAR,na.rm=T))
+  
+  
+  windows(20,30);par(cex.axis=1.5,cex.lab=2,mar=c(5,7,1,1))
+  plotBy(VPDair~Tair_al|T_treatment,col=c("black","red"),pch="+",data=toplot.hr,cex=0.5,xlim=c(2,47),ylim=c(0,8),
+         legend=F,ylab=("VPD (kPa)"),xlab=expression(T[air]~(degree*C)))
+  Ts <- seq(3,42,length=101)
+  RH10 <- RHtoVPD(RH=10, TdegC=Ts, Pa = 101)
+  RH20 <- RHtoVPD(RH=20, TdegC=Ts, Pa = 101)
+  RH30 <- RHtoVPD(RH=30, TdegC=Ts, Pa = 101)
+  RH40 <- RHtoVPD(RH=40, TdegC=Ts, Pa = 101)
+  RH50 <- RHtoVPD(RH=50, TdegC=Ts, Pa = 101)
+  RH60 <- RHtoVPD(RH=60, TdegC=Ts, Pa = 101)
+  RH70 <- RHtoVPD(RH=70, TdegC=Ts, Pa = 101)
+  RH80 <- RHtoVPD(RH=80, TdegC=Ts, Pa = 101)
+  RH90 <- RHtoVPD(RH=90, TdegC=Ts, Pa = 101)
+  lines(RH10~Ts,lty=3)
+  lines(RH30~Ts,lty=3)
+  lines(RH50~Ts,lty=3)
+  lines(RH70~Ts,lty=3)
+  lines(RH90~Ts,lty=3)
+  xs <- rep(max(Ts),5)+3
+  ys <- c(max(RH10),max(RH30),max(RH50),max(RH70),max(RH90))
+  labels <- c("10%","30%","50%","70%","90%")
+  textxy(X=xs,Y=ys,labs=labels,cex=0.9,offset=0)
+  
+  legend("topleft",pch=c("+","+",NA),lty=c(NA,NA,3),col=c("black","red","black"),legend=c("Ambient","Warmed","RH isolines"),bty="n")
+  
+  if(export==T)dev.copy2pdf(file="Output/FigureS2.pdf")
 }
