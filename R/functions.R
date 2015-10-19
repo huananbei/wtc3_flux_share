@@ -3,6 +3,8 @@
 #    are called by just a few lines of code in "main script.R" to recreate the analyses and figures.
 #----------------------------------------------------------------------------------------------------------------
 
+#- create an "output" directory, if one does not already exist.
+dir.create("output",showWarnings=F)
 
 
 

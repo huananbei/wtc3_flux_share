@@ -1,35 +1,37 @@
-#- required libraries
-library(mgcv)
-library(scales)
-library(gplots)
-library(plotBy)
-library(magicaxis)
-library(lubridate)
-library(doBy)
-library(Hmisc)
-library(zoo)
-library(hexbin)
-library(nlme)
-library(lsmeans)
-library(car)
-library(data.table)
-library(calibrate)
+#-------------------------------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------
+#- This is the central script to reproduce the analyses and figures in the manuscript
+#    "Does thermal acclimation to climate warming stabilize the ratio of canopy respiration to photosynthesis?" 
+#     by Drake JE, Tjoelker MG, Aspinwall MJ, Reich PB, Barton CVM, Medlyn BE, Duursma RA.
+#-------------------------------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------
 
-#- the following libraries aren't on CRAN, but can be installed from github or bitbucket with devtools
-library(devtools)
-#install_bitbucket("remkoduursma/plantecophys")
-#install_bitbucket("remkoduursma/HIEv")
-#install_github("jslefche/piecewiseSEM")
-library(piecewiseSEM) # for estimating r2 value in mixed-effects models
-library(plantecophys) # for modeling leaf-level gas exchange
-library(HIEv)         
+
+#-------------------------------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------
+#- Setup
+
+#- If you have cloned the github repository as suggested here https://github.com/jedrake/wtc3_flux_share ,
+#      then this script should simply work. If you have downloaded a zipfile or otherwise copied the 
+#      data and code manually, then you will need to set the working directory to the root;
+#      that is, the "wtc3_flux_share" directory containing the folders "data", "R", and "README.md".
+#      The following line is an example- you will need to edit this to match your local machine.
+# setwd("C:/Repos/wtc3_flux_share")
+
+
+#- load required libraries. There are quite a few, including some non-standard functions that
+#    are not on CRAN. This script will check for required libraries and install any that are missing.
+source("R/loadLibraries.R")
+
 
 #- load the analysis and plotting functions that do all of the actual work
 source("R/functions.R")
 
 #- export flag. Set to "T" to create pdfs of figures in "output/", or "F" to suppress output.
 #- This flag is passed to many of the plotting functions below.
-export=F
+export=T
+#-------------------------------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------
 
 
 
