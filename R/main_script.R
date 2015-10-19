@@ -19,14 +19,14 @@
 # setwd("C:/Repos/wtc3_flux_share")
 
 
-#- load required libraries. There are quite a few, including some non-standard functions that
+#- Load required libraries. There are quite a few (>20), including some non-standard functions that
 #    are not on CRAN. This script will check for required libraries and install any that are missing.
 source("R/loadLibraries.R")
 
 #- Updating packages is highly recommended
 update.packages(ask=F)
 
-#- load the analysis and plotting functions that do all of the actual work
+#- load the custom analysis and plotting functions that do all of the actual work
 source("R/functions.R")
 
 #- export flag. Set to "T" to create pdfs of figures in "output/", or "F" to suppress output.
@@ -131,7 +131,7 @@ plotGPP_hex(dat=dat.hr.p,export=export,shading=0.7)
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
 #- Plot the 5 diurnal observations of leaf-level photosynthesis and stomatal conductance (Figure 7).
-#    Set printANOVAs to "T" to print ANOVAs for each date.
+#    Set printANOVAs to "T" to print ANOVAs for net photosynthesis (Anet) and stomatal conductance (Cond) on each date.
 plotAnet_met_diurnals(export=export,lsize=2,printANOVAs=F)
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
