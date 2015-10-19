@@ -35,7 +35,7 @@ library(calibrate)
 if (!require("devtools")) install.packages("devtools")
 if (!require("plantecophys")) install_bitbucket("remkoduursma/plantecophys")
 if (!require("HIEv")) install_bitbucket("remkoduursma/HIEv")
-if (!require("plotBy")) install_bitbucket("plotBy", "remkoduursma")
+if (!require("plotBy")) install_bitbucket("remkoduursma/plotBy")
 if (!require("piecewiseSEM")) install_github("jslefche/piecewiseSEM")
 library(devtools)
 library(piecewiseSEM) # for estimating r2 value in mixed-effects models
