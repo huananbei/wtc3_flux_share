@@ -225,9 +225,6 @@ return.leaks <- function(plotson=0){
 
 return_Rcanopy_closed <- function(){
 
-  #source("//ad.uws.edu.au/dfshare/HomesHWK$/30035219/My Documents/Work/HFE/WTC3/gx_wtc3/R/loadLibrariesWTC3.R")
-  
-  
   # get the leak parameter for each chamber. This will be used later to estimate the rate of respiration
   leaks <- return.leaks(plotson=0)
   
@@ -319,7 +316,7 @@ return_Rcanopy_closed <- function(){
   #----------------------------------------------------------------------------------------------
   # get the chamber temperatures by downloading the inside met data from HIEv
   #downloadHIEv(searchHIEv("WTC_TEMP_CM_WTCMET_20140201-20140228_L1_v1.csv"),topath="data/from HIEv")
-  met <- read.csv("C:/Repos/wtc3_flux/data/from HIEv/WTC_TEMP_CM_WTCMET_20140201-20140228_L1_v1.csv")
+  met <- read.csv("data/WTC_TEMP_CM_WTCMET_20140201-20140228_L1_v1.csv")
   met$DateTime <- as.POSIXct(met$DateTime,tz="GMT")
   #met2 <- subset(met,DateTime>starttime1 & DateTime < stoptime5)
   
