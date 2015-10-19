@@ -24,7 +24,7 @@
 source("R/loadLibraries.R")
 
 #- Updating packages is highly recommended
-update.packages(ask=F)
+#update.packages(ask=F)
 
 #- load the custom analysis and plotting functions that do all of the actual work
 source("R/functions.R")
