@@ -15,7 +15,7 @@
 #      then this script should simply work. If you have downloaded a zipfile or otherwise copied the 
 #      data and code manually, then you will need to set the working directory to the root;
 #      that is, the "wtc3_flux_share" directory containing the folders "data", "R", and "README.md".
-#      The following line is an example- you will need to edit this to match your local machine.
+#      The following line is an example- you will need to uncomment this and edit it to match your local machine.
 # setwd("C:/Repos/wtc3_flux_share")
 
 
@@ -95,7 +95,7 @@ dat.hr.p <- partitionHourlyFluxCUE_arr(dat.hr.gf=dat.hr,Ea=57.69,lagdates=3)
 #- plot an example week of partitioned fluxes (Figure S1)
 plotPartitionedFluxes(dat.hr.gf3=dat.hr.p,ch_toplot="C07",startDate="2014-3-22",endDate="2014-3-27",export=export)
 
-#- get daily sums
+#- get daily sums from the partitioned hourly data
 cue.list <- returnCUE.day(dat=dat.hr.p) # get daily sums from hourly data
 cue.day <- cue.list[[1]]                # extract chamber values on each day
 cue.day.trt <- cue.list[[2]]            # extract treatment averages
@@ -106,12 +106,8 @@ plotPAR_AirT_CUE_GPP_Ra(cue.day.trt=cue.day.trt,export=export,lwidth=2.75)
 #- plot PAR and Temperaure dependence of GPP, Ra, and Ra/GPP (Figure 5)
 plotGPP_Ra_CUE_metdrivers(cue.day=cue.day,export=export,shading=0.7)
 
-
-
-
 #- plot VPD and Tair dependence (Figure S2)
 plotVPD_Tair(dat=dat.hr,export=export)
-  
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
 
