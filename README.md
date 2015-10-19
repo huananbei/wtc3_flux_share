@@ -1,7 +1,5 @@
 # wtc3_flux_share
-Whole tree flux dataset and processing scripts. Hawkesbury Institute for the Environment, University of Western Sydney.
-
-This repository contains the data and R code to replicate the figures and analyses presented in the following manuscript. 
+Whole tree flux dataset and processing scripts. This repository contains the data and R code to replicate the figures and analyses presented in the following manuscript:
 
 "Does thermal acclimation to climate warming stabilize the ratio of canopy respiration to photosynthesis?"
 Drake JE, Tjoelker MG, Aspinwall MJ, Reich PB, Barton CVM, Medlyn BE, Duursma RA 
