@@ -23,6 +23,8 @@
 #    are not on CRAN. This script will check for required libraries and install any that are missing.
 source("R/loadLibraries.R")
 
+#- Updating packages is highly recommended
+update.packages(ask=F)
 
 #- load the analysis and plotting functions that do all of the actual work
 source("R/functions.R")
@@ -91,7 +93,7 @@ dat.hr$Date <- as.Date(dat.hr$DateTime)
 dat.hr.p <- partitionHourlyFluxCUE_arr(dat.hr.gf=dat.hr,Ea=57.69,lagdates=3)
 
 #- plot an example week of partitioned fluxes (Figure S1)
-plotPartitionedFluxes(dat.hr.gf3=dat.hr.p,ch_toplot="C07",startDate="2014-3-22",endDate="2014-3-27",write=F)
+plotPartitionedFluxes(dat.hr.gf3=dat.hr.p,ch_toplot="C07",startDate="2014-3-22",endDate="2014-3-27",export=export)
 
 #- get daily sums
 cue.list <- returnCUE.day(dat=dat.hr.p) # get daily sums from hourly data

@@ -752,7 +752,7 @@ partitionHourlyFluxCUE_arr <- function(dat.hr.gf=dat.hr.gf,Ea=57.69,lagdates,lea
 
 #----------------------------------------------------------------------------------------------------------------
 #-- Plots the net CO2 flux and its partitioning into GPP and Ra. Defaults to an example week for chamber 7
-plotPartitionedFluxes <- function(dat.hr.gf3=dat.hr.gf3,ch_toplot="C07",startDate="2014-3-22",endDate="2014-3-27",write=F){
+plotPartitionedFluxes <- function(dat.hr.gf3=dat.hr.gf3,ch_toplot="C07",startDate="2014-3-22",endDate="2014-3-27",export=F){
   
   startDate <- as.Date(startDate)
   endDate <- as.Date(endDate)
@@ -787,7 +787,7 @@ plotPartitionedFluxes <- function(dat.hr.gf3=dat.hr.gf3,ch_toplot="C07",startDat
   
   mtext(text="Date",side=1,outer=F,line=4,cex=1.5)
   
-  if(write==T){dev.copy2pdf(file="output/FigureS1.pdf")}
+  if(export==T){dev.copy2pdf(file="output/FigureS1.pdf")}
 }
 #----------------------------------------------------------------------------------------------------------------
 
