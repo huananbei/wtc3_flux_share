@@ -32,11 +32,12 @@ library(data.table)
 library(calibrate)
 
 #- the following libraries aren't on CRAN, but can be installed from github or bitbucket with devtools
-if (!require("devtools")) library(devtools)
+if (!require("devtools")) install.packages("devtools")
 if (!require("plantecophys")) install_bitbucket("remkoduursma/plantecophys")
 if (!require("HIEv")) install_bitbucket("remkoduursma/HIEv")
 if (!require("plotBy")) install_bitbucket("plotBy", "remkoduursma")
 if (!require("piecewiseSEM")) install_github("jslefche/piecewiseSEM")
+library(devtools)
 library(piecewiseSEM) # for estimating r2 value in mixed-effects models
 library(plantecophys) # for modeling leaf-level gas exchange
 library(HIEv)  
