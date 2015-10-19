@@ -145,7 +145,7 @@ return.leaks <- function(plotson=0){
   for (i in 1:length(dat1.list)){
     dat <- dat1.list[[i]]
     
-    out1[i] <- suppressWarnings(optimise(f=leak.mod,interval=c(0,0.5),V=60,Ca=dat$CO2ref,Ci=dat$CO2L,fit=1))
+    out1[i] <- suppressWarnings(optimise(f=leak.mod,interval=c(0,0.5),V=53,Ca=dat$CO2ref,Ci=dat$CO2L,fit=1))
     
   }
   
@@ -362,7 +362,7 @@ return_Rcanopy_closed <- function(){
   for (i in 1:length(dat3.l)){
     dat <- dat3.l[[i]]
     theta <- leaks[dat$chamber[1],2]
-    out1[[i]] <- optimise(f=closedWTC.mod,interval=c(0,200),theta=theta,V=60,Ca=dat$CO2ref,Ci=dat$CO2L,fit=1)[[1]] # V was 30
+    out1[[i]] <- optimise(f=closedWTC.mod,interval=c(0,200),theta=theta,V=53,Ca=dat$CO2ref,Ci=dat$CO2L,fit=1)[[1]] # V was 30
     chamber <- dat$chamber[1]
     id <- dat$id[1]
     T_treatment <- dat$T_treatment[1]
