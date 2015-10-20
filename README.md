@@ -5,6 +5,7 @@ Whole tree flux dataset and processing scripts. This repository contains the dat
 Drake JE, Tjoelker MG, Aspinwall MJ, Reich PB, Barton CVM, Medlyn BE, Duursma RA 
 
 There are two ways to download and use this code.
+
 (1) I recommend that you clone this repository into an Rstudio project by copying the SSH link on the right, and pasting the link into a new Rstudio project URL (File > New Project > Version Control > Git). You will also need git. This process is described in useful detail here:  http://www.molecularecologist.com/2013/11/using-github-with-r-and-rstudio/ . The data files are moderately large (~32 MB total), so cloning this repository may take longer than is typical.
 
 (2) You could choose to download a zip file of this repository using the link on the right. Upzip it in a location of your choosing and update the setwd() command on line 20 of “main_script.R” accordingly.
