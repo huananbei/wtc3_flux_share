@@ -13,8 +13,9 @@
 
 #- If you have cloned the github repository as suggested here https://github.com/jedrake/wtc3_flux_share ,
 #      then this script should simply work. If you have downloaded a zipfile or otherwise copied the 
-#      data and code manually, then you will need to set the working directory to the root;
-#      that is, the "wtc3_flux_share" directory containing the folders "data", "R", and "README.md".
+#      data and code manually, then you will need to set the working directory to wherever you've put the main directory.
+#      That is, set the working directory to the "wtc3_flux_share" directory containing the folders "data", 
+#         "R", and "README.md".
 #      The following line is an example- you will need to uncomment this and edit it to match your local machine.
 # setwd("C:/Repos/wtc3_flux_share")
 
@@ -81,7 +82,7 @@ plotRleafRbranch(export=export)
 
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
-#- Read and process the hourly flux dataset. Plot Figures 4 and 5.
+#- Read and process the hourly flux dataset. Plot Figs 4-5 and Figs S1-S2.
 
 #- read in the hourly flux data
 dat.hr <- read.csv("data/WTC_TEMP_CM_WTCFLUX_20130910-20140530_L2_V1.csv")
@@ -140,7 +141,7 @@ plotAnet_met_diurnals(export=export,lsize=2,printANOVAs=F)
 
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
-#- Does inhibition of respiration in the light affect the results?
+#- Does inhibition of respiration in the light affect the results? (Figs S3-4)
 
 #- re-partition CO2 fluxes into Ra and GPP assuming R is reduced by 30% in the light
 dat.hr.p2 <- partitionHourlyFluxCUE_arr(dat.hr.gf=dat.hr,Ea=57.69,lagdates=3,leafRtoTotal = 1,leafRreduction=0.3)
@@ -153,5 +154,13 @@ cue.day.trt2 <- cue.list2[[2]]            # extract treatment averages
 #- make plots comparing partitioning methods. (Figures S3-4)
 plotCUE_paritioning_method(cue.day,cue.day2,export=export)
 plotCUEvsT_partitioning_method(cue.day,cue.day2,export=export,shading=0.5)
+#-------------------------------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------
+
+
+#-------------------------------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------
+#- Does tonight's repiration depend on yesterday's photosynthesis? (Figure S5)
+Ra_GPP_couping(cue.day=cue.day,export=export,shading=0.7)
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------

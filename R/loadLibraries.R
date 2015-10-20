@@ -1,19 +1,47 @@
 #- required libraries
 
-if (require("mgcv",quietly=T)==F) install.packages("mgcv")
-if (require("scales",quietly=T)==F) install.packages("scales")
-if (require("gplots",quietly=T)==F) install.packages("gplots")
-if (require("magicaxis",quietly=T)==F) install.packages("magicaxis")
-if (require("lubridate",quietly=T)==F) install.packages("lubridate")
-if (require("doBy",quietly=T)==F) install.packages("doBy")
-if (require("Hmisc",quietly=T)==F) install.packages("Hmisc")
-if (require("zoo",quietly=T)==F) install.packages("zoo")
-if (require("hexbin",quietly=T)==F) install.packages("hexbin")
-if (require("nlme",quietly=T)==F) install.packages("nlme")
-if (require("lsmeans",quietly=T)==F) install.packages("lsmeans")
-if (require("car",quietly=T)==F) install.packages("car")
-if (require("data.table",quietly=T)==F) install.packages("data.table")
-if (require("calibrate",quietly=T)==F) install.packages("calibrate")
+if (require("mgcv",quietly=T)==F) {
+  install.packages("mgcv")
+  library(mgcv,quietly=T)}
+if (require("scales",quietly=T)==F) {
+  install.packages("scales")
+  library(scales,quietly=T)}
+if (require("gplots",quietly=T)==F) {
+  install.packages("gplots")
+  library(gplots,quietly=T)}
+if (require("magicaxis",quietly=T)==F) {
+  install.packages("magicaxis")
+  library(magicaxis,quietly=T)}
+if (require("lubridate",quietly=T)==F){
+  install.packages("lubridate")
+  library(lubridate,quietly=T)} 
+if (require("doBy",quietly=T)==F) {
+  install.packages("doBy")
+  library(doBy,quietly=T)}
+if (require("Hmisc",quietly=T)==F) {
+  install.packages("Hmisc")
+  library(Hmisc,quietly=T)}
+if (require("zoo",quietly=T)==F) {
+  install.packages("zoo")
+  library(zoo,quietly=T)}
+if (require("hexbin",quietly=T)==F) {
+  install.packages("hexbin")
+  library(hexbin,quietly=T)}
+if (require("nlme",quietly=T)==F) {
+  install.packages("nlme")
+  library(nlme,quietly=T)}
+if (require("lsmeans",quietly=T)==F) {
+  install.packages("lsmeans")
+  library(lsmeans,quietly=T)}
+if (require("car",quietly=T)==F) {
+  install.packages("car")
+  library(car,quietly=T)}
+if (require("data.table",quietly=T)==F) {
+  install.packages("data.table")
+  library(data.table,quietly=T)}
+if (require("calibrate",quietly=T)==F) {
+  install.packages("calibrate")
+  library(calibrate,quietly=T)}
 
 # 
 # library(mgcv,quietly=T)
@@ -32,13 +60,20 @@ if (require("calibrate",quietly=T)==F) install.packages("calibrate")
 # library(calibrate,quietly=T)
 
 #- the following libraries aren't on CRAN, but can be installed from github or bitbucket with devtools
-if (require("devtools")==F) install.packages("devtools")
-library(devtools,quietly=T)
-
-if (require("plantecophys")==F) install_bitbucket("remkoduursma/plantecophys")
-if (require("HIEv")==F) install_bitbucket("remkoduursma/HIEv")
-if (require("plotBy")==F){ install_bitbucket("remkoduursma/plotBy")}
-if (require("piecewiseSEM")==F) install_github("jslefche/piecewiseSEM")
+if (require("devtools")==F) {install.packages("devtools")
+  library(devtools,quietly=T)}
+if (require("plantecophys")==F) {
+  install_bitbucket("remkoduursma/plantecophys")
+  library(plantecophys,quietly=T)}
+if (require("HIEv")==F) {
+  install_bitbucket("remkoduursma/HIEv")
+  library(HIEv,quietly=T)}
+if (require("plotBy")==F){ 
+  install_bitbucket("remkoduursma/plotBy")
+  library(plotBy,quietly=T)}
+if (require("piecewiseSEM")==F) {
+  install_github("jslefche/piecewiseSEM")
+  library(piecewiseSEM,quietly=T)}
 
 # library(piecewiseSEM,quietly=T) # for estimating r2 value in mixed-effects models
 # library(plantecophys,quietly=T) # for modeling leaf-level gas exchange

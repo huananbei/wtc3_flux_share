@@ -1594,3 +1594,37 @@ plotVPD_Tair <- function(dat=dat.hr,export=F){
   
   if(export==T)dev.copy2pdf(file="Output/FigureS2.pdf")
 }
+#--------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------
+
+
+
+
+
+#--------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------
+#- Does Ra correspond to GPP on the prior day? Not really.
+Ra_GPP_couping <- function(cue.day=cue.day,export=export,shading=0.7){
+  cue.day <- subset(cue.day,Ranight<0)
+  cue.day$Ranight_la <- with(cue.day,-1*Ranight/leafArea)
+  cue.day$Cgain_la <- with(cue.day,Cgain/leafArea)
+
+  windows(20,20)
+  palette(c("black","red"))
+  par(mar=c(5,7,1,1))
+  smoothplot(GPP_la,Ranight_la, T_treatment,polycolor=c(alpha("lightgrey",shading),alpha("lightgrey",shading)),
+             random="chamber",xlab="",ylab="",
+             xlim=c(0,9),
+             ylim=c(0,1.5),
+             data=cue.day, kgam=1, axes=FALSE)
+  title(ylab=expression(Nightly~C~loss~(gC~m^-2~d^-1)),xlab=expression(GPP~(gC~m^-2~d^-1)),outer=F,cex.lab=1.5)
+#   lme1 <- lme(Ranight_la~GPP_la*T_treatment,random=~1|chamber,data=cue.day)
+#   anova(lme1)
+#   summary(lme1)
+#   lm1 <- lm(Ranight_la~GPP_la,data=cue.day)
+#   anova(lm1);summary(lm1)
+  magaxis(side=1:4,labels=c(1,1,0,0))
+  if(export==T) dev.copy2pdf(file="output/FigureS5.pdf")
+}
+#--------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------
