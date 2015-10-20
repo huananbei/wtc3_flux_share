@@ -1604,7 +1604,7 @@ plotVPD_Tair <- function(dat=dat.hr,export=F){
 #--------------------------------------------------------------------------------------------------
 #--------------------------------------------------------------------------------------------------
 #- Does Ra correspond to GPP on the prior day? Not really.
-Ra_GPP_couping <- function(cue.day=cue.day,export=export,shading=0.7){
+Ra_GPP_couping <- function(cue.day=cue.day,export=export,shading=0.7,kgam=3){
   cue.day <- subset(cue.day,Ranight<0)
   cue.day$Ranight_la <- with(cue.day,-1*Ranight/leafArea)
   cue.day$Cgain_la <- with(cue.day,Cgain/leafArea)
@@ -1616,7 +1616,7 @@ Ra_GPP_couping <- function(cue.day=cue.day,export=export,shading=0.7){
              random="chamber",xlab="",ylab="",
              xlim=c(0,9),
              ylim=c(0,1.5),
-             data=cue.day, kgam=1, axes=FALSE)
+             data=cue.day, kgam=kgam, axes=FALSE)
   title(ylab=expression(Nightly~C~loss~(gC~m^-2~d^-1)),xlab=expression(GPP~(gC~m^-2~d^-1)),outer=F,cex.lab=1.5)
 #   lme1 <- lme(Ranight_la~GPP_la*T_treatment,random=~1|chamber,data=cue.day)
 #   anova(lme1)

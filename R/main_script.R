@@ -15,7 +15,7 @@
 #      then this script should simply work. If you have downloaded a zipfile or otherwise copied the 
 #      data and code manually, then you will need to set the working directory to wherever you've put the main directory.
 #      That is, set the working directory to the "wtc3_flux_share" directory containing the folders "data", 
-#         "R", and "README.md".
+#         "R", and the file "README.md".
 #      The following line is an example- you will need to uncomment this and edit it to match your local machine.
 # setwd("C:/Repos/wtc3_flux_share")
 
