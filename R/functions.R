@@ -1604,7 +1604,7 @@ plotVPD_Tair <- function(dat=dat.hr,export=F){
 #--------------------------------------------------------------------------------------------------
 #--------------------------------------------------------------------------------------------------
 #- Does Ra correspond to GPP on the prior day? Not really.
-Ra_GPP_couping <- function(cue.day=cue.day,export=export,shading=0.7,kgam=3){
+Ra_GPP_coupling <- function(cue.day=cue.day,export=export,shading=0.7,kgam=3){
   cue.day <- subset(cue.day,Ranight<0)
   cue.day$Ranight_la <- with(cue.day,-1*Ranight/leafArea)
   cue.day$Cgain_la <- with(cue.day,Cgain/leafArea)
