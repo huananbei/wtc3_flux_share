@@ -11,7 +11,7 @@ dir.create("output",showWarnings=F)
 #----------------------------------------------------------------------------------------------------------------
 # Demonstration of the short-term temperature effects on photosynthesis and respiration.
 
-plotCUE_conceptual_fig <- function(toexport=T,Tdew=10,Ca=400,Vcmax=100,Jmax=125,Tleaf=10:45,PPFD=1500){
+plotCUE_conceptual_fig <- function(toexport=T,Tdew=10,Ca=400,Vcmax=100,Jmax=125,Tleaf=20:42,PPFD=1500){
   # load required libraries
   #- set up parameters for model
   #VPD <- RHtoVPD(RH=RH,TdegC=Tleaf)
@@ -20,7 +20,8 @@ plotCUE_conceptual_fig <- function(toexport=T,Tdew=10,Ca=400,Vcmax=100,Jmax=125,
   #- predict photosynthesis and respiration with changing T (and VPD)
   output<- Photosyn(VPD=VPD,Ca=Ca,Vcmax=Vcmax,Jmax=Jmax,Tleaf=Tleaf,Tcorrect=T,Rd0=1,TrefR=20,PPFD=PPFD)
   output$AGROSS <- with(output,ALEAF+Rd)
-  output.acclim <-Photosyn(VPD=VPD,Ca=Ca,Vcmax=Vcmax,Jmax=Jmax*0.95,Tleaf=Tleaf,Tcorrect=T,Rd0=0.5,TrefR=20,delsJ=600,PPFD=PPFD)
+  output.acclim <-Photosyn(VPD=VPD,Ca=Ca,Vcmax=Vcmax,Jmax=Jmax*0.95,Tleaf=Tleaf,Tcorrect=T,Rd0=0.6,TrefR=20,delsJ=630,PPFD=PPFD)
+  
   output.acclim$AGROSS <- with(output.acclim,ALEAF+Rd)
   
   #- calculate CUE
@@ -30,19 +31,20 @@ plotCUE_conceptual_fig <- function(toexport=T,Tdew=10,Ca=400,Vcmax=100,Jmax=125,
   RtoA2 <- (output.acclim$Rd/output.acclim$AGROSS)
   
   #- plot
-  windows(20,40);par(mfrow=c(2,1),mar=c(2,7,1,1),oma=c(3,0,2,0),xpd=F,las=1)
+  windows(20,40);par(mfrow=c(2,1),mar=c(2,7,1,1),oma=c(3,0,2,0),las=1)
   plot(AGROSS~Tleaf,data=output,type="l",ylab="",cex.lab=1.4,ylim=c(0,23),
-       col="forestgreen",lwd=2,xaxt="n",yaxt="n")
+       col="forestgreen",lwd=2,xaxt="n",yaxt="n",frame.plot=F)
   magaxis(side=c(1,2,4),labels=c(1,1,0),frame.plot=T,majorn=3)
   title(ylab=expression(atop(Leaf~CO[2]~exchange,
                              (mu*mol~CO[2]~m^-2~s^-1))),cex.lab=1.3)
   lines(AGROSS~Tleaf,data=output.acclim,type="l",col="forestgreen",lwd=2,lty=2)
-  lines(Rd~Tleaf,data=output,col="red",lwd=2)
-  lines(Rd~Tleaf,data=output.acclim,col="red",lwd=2,lty=2)
-  legend(x=12,y=27,xpd=NA,legend=c("A","R"),lwd=2,col=c("forestgreen","red"),ncol=2,bty="n")
+  lines(Rd~Tleaf,data=output,col="brown",lwd=2)
+  lines(Rd~Tleaf,data=output.acclim,col="brown",lwd=2,lty=2)
+  legend(x=22,y=27,xpd=NA,legend=c("A","R"),lwd=2,col=c("forestgreen","brown"),ncol=2,bty="n")
   legend("topleft","a",cex=1.1,bty="n",inset=-0.05)
   
-  plot(RtoA~output$Tleaf,type="l",ylab="",ylim=c(0,0.6),cex.lab=1.3,lwd=2,col="black",xaxt="n",yaxt="n")
+  plot(RtoA~output$Tleaf,type="l",ylab="",ylim=c(0,0.6),cex.lab=1.3,lwd=2,col="black",xaxt="n",yaxt="n",
+       frame.plot=F)
   magaxis(side=c(1,2,4),labels=c(1,1,0),frame.plot=T,majorn=3)
   title(ylab=expression(R/A),cex.lab=1.3)
   
@@ -50,7 +52,13 @@ plotCUE_conceptual_fig <- function(toexport=T,Tdew=10,Ca=400,Vcmax=100,Jmax=125,
   legend("topleft","b",cex=1.1,bty="n",inset=-0.05)
   
   par(xpd=NA)
-  text(x=29,y=-0.15,expression(T[leaf]~(degree*C)),cex=1.4)
+  text(x=32,y=-0.15,expression(T[leaf]~(degree*C)),cex=1.4)
+  
+  #- overlay conceptual points
+  
+  Arrows(x0=c(35,35),y0=c(0.155,0.155),x1=c(39,38),y1=c(0.32,0.155),lwd=3,col=c("red","orange"),arr.type="curved")
+  points(x=c(35,40,40),y=c(0.155,0.36,0.155),pch=16,col=c("black","red","orange"),cex=2.5)
+  
   
   if(toexport==T) dev.copy2pdf(file="./output/Figure1.pdf")
 }
