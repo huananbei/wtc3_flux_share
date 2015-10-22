@@ -22,7 +22,7 @@
 
 
 
-dat <- subset(cue.day,select=c("Date","T_treatment","Water_treatment","chamber","CUE","RtoA","GPP_la","Ra_la","PAR","leafArea"))
+dat <- subset(cue.day,select=c("Date","T_treatment","Water_treatment","chamber","CUE","RtoA","GPP_la","Ra_la","PAR","leafArea","Tair_24hrs"))
 dat2 <- subset(dat,Water_treatment=="control")
 dat2$T_treatment <- as.factor(dat2$T_treatment)
 dat2$DateFac <- as.factor(dat2$Date)
@@ -198,7 +198,12 @@ table1 <- cbind(table.r2,as.matrix(anova(sp.cue.ar1.reml))[1:4,3:4])[2:4,]
 table1 
 
 
-####
+
+
+
+
+#-------------------------------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------
 #-- analysis of just the exceedingly hot days
 hotDates <- unique(dat.hr.p[which(dat.hr.p$Tair_al>40),"Date"]) # find dates with temperatures exceeding 40 deg C
 dat.hr.p.hot <- subset(dat.hr.p,Date %in% hotDates)
@@ -218,6 +223,52 @@ plot(sp.CUE.hot,RtoA~fitted(.),abline=c(0,1))              #predicted vs. fitted
 qqnorm(sp.CUE.hot, ~ resid(., type = "p"), abline = c(0, 1))     #qqplot
 anova(sp.CUE.hot)
 lsmeans(sp.CUE.hot,"T_treatment") 
+CIs <- intervals(sp.CUE.hot,which="fixed")
+CIs$fixed[2,] # 95% confidence intervals for T_treatment effect
+
+#-----
+#- alternatively, just analyze data above the inflection point between Ra/GPP and T (24-hr average T > 22)
+hotDates2 <- unique(cue.day[which(cue.day$Tair_24hrs>22 & cue.day$T_treatment=="ambient"),"Date"]) # find dates with temperatures exceeding 40 deg C
+
+# summarize these hot dates
+dat.hr.p.hot2 <- subset(dat.hr.p,Date %in% hotDates2)
+hotDates_met2 <- summaryBy(Tair_al~T_treatment+Date,data=dat.hr.p.hot2,FUN=c(mean,min,max),na.rm=T)
+summaryBy(Tair_al.mean+Tair_al.min+Tair_al.max~T_treatment,data=hotDates_met2) # average maximum temperature on these hot dates
+
+
+#- re-analyze on hot dates only. Capture heteroskedasticity across dates
+hot2 <- subset(dat2,Date %in% hotDates2)
+hot2$DateFac <- factor(hot2$DateFac)
+sp.CUE.hot2 <- lme(RtoA~T_treatment*DateFac,random=list(~1|chamber),
+                  weights=varIdent(form=~1|DateFac),
+                  data=hot2)
+
+
+#look at model diagnostics
+plot(sp.CUE.hot2,resid(.,type="p")~fitted(.) | T_treatment,abline=0)   #resid vs. fitted for each treatment
+plot(sp.CUE.hot2,RtoA~fitted(.)|chamber,abline=c(0,1))         #predicted vs. fitted for each chamber
+plot(sp.CUE.hot2,RtoA~fitted(.),abline=c(0,1))              #predicted vs. fitted
+qqnorm(sp.CUE.hot2, ~ resid(., type = "p"), abline = c(0, 1))     #qqplot. not bad
+anova(sp.CUE.hot2)
+lsmeans(sp.CUE.hot2,"T_treatment") 
+CIs2 <- intervals(sp.CUE.hot2,which="fixed")
+CIs2$fixed[2,] # 95% confidence intervals for T_treatment effect
+
+
+#- yet another alternative, ANCOVA
+
+plotBy(RtoA~Tair_24hrs|T_treatment,data=hot2)
+ancova.hot <- lm(RtoA~T_treatment+Tair_24hrs+T_treatment:Tair_24hrs,data=hot2)
+ancova.hot.noint <- update(ancova.hot,.~. -T_treatment:Tair_24hrs)
+
+#look at model diagnostics
+qqPlot(ancova.hot.noint, main="QQ Plot") #qq plot for studentized resid 
+plot(ancova.hot.noint)
+anova(ancova.hot.noint)
+
+#extract slope and 95% confidence interval
+coef(ancova.hot.noint)
+confint(ancova.hot.noint)
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
 
@@ -226,10 +277,16 @@ lsmeans(sp.CUE.hot,"T_treatment")
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
 #- sum Ra and GPP across the entire experiment or all chambers
-CUE.sum <- summaryBy(Ra_la+GPP_la~chamber+T_treatment,data=cue.day,FUN=sum)
+
+#- subset to just the pre-drought data?
+pre.drought <- subset(dat2,Date< as.Date("2014-2-12"))
+
+CUE.sum <- summaryBy(Ra_la+GPP_la~chamber+T_treatment,data=dat2,FUN=sum) # calculate sums for each chamber
 CUE.sum$RtoA <- with(CUE.sum,Ra_la.sum/GPP_la.sum)
 CUE.lm <- lm(RtoA~T_treatment,data=CUE.sum)
 anova(CUE.lm)
+summary(CUE.lm)
+confint(CUE.lm) # confidence interval for warming effect on Ra/GPP experiment-wise sums
 
 boxplot(RtoA~T_treatment,data=CUE.sum,col=c("grey","red"),ylab="Ra/GPP, experiment-wise sums",xlab="Treatment",
         cex.lab=1.5)

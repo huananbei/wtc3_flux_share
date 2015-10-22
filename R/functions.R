@@ -20,7 +20,7 @@ plotCUE_conceptual_fig <- function(toexport=T,Tdew=10,Ca=400,Vcmax=100,Jmax=125,
   #- predict photosynthesis and respiration with changing T (and VPD)
   output<- Photosyn(VPD=VPD,Ca=Ca,Vcmax=Vcmax,Jmax=Jmax,Tleaf=Tleaf,Tcorrect=T,Rd0=1,TrefR=20,PPFD=PPFD)
   output$AGROSS <- with(output,ALEAF+Rd)
-  output.acclim <-Photosyn(VPD=VPD,Ca=Ca,Vcmax=Vcmax,Jmax=Jmax*0.95,Tleaf=Tleaf,Tcorrect=T,Rd0=0.6,TrefR=20,delsJ=630,PPFD=PPFD)
+  output.acclim <-Photosyn(VPD=VPD,Ca=Ca,Vcmax=Vcmax,Jmax=Jmax*0.95,Tleaf=Tleaf,Tcorrect=T,Rd0=0.65,TrefR=20,delsJ=630,PPFD=PPFD)
   
   output.acclim$AGROSS <- with(output.acclim,ALEAF+Rd)
   
