@@ -3,6 +3,10 @@ if (require("shape",quietly=T)==F) {
   install.packages("shape")
   library(shape,quietly=T)}
 
+if (require("forecast",quietly=T)==F) {
+  install.packages("forecast")
+  library(forecast,quietly=T)}
+
 if (require("mgcv",quietly=T)==F) {
   install.packages("mgcv")
   library(mgcv,quietly=T)}
