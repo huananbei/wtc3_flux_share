@@ -12,17 +12,15 @@
 
 # Source                df calculation               df  
 # Warming                  w-1                        1
-# chamber(Warming)         w(c-1)                    10   # this is the random whole-plot error term to test warming main effect
-# Time                    (T-1)                     254   # in this case I have 255 timepoints
-# Time*Warming             (T-1)*(w-1)              254
-# Time*chamber[warming]  (T-1)*(c-1)*w             2540  # this is the random sub-plot error term. it's the same as the residual
+# chamber(Warming)         w*(c-1)                    10   # this is the random whole-plot error term to test warming main effect
+# Time                     T-1                     254     # in this case I have 255 timepoints
+# Time*Warming            (T-1)*(w-1)              254
+# Time*chamber[warming]   (T-1)*(c-1)*w             2540   # this is the random sub-plot error term. it's the same as the residual
 #                                                               , as there is no sub-replication here.. 254*5*2
-
 #- note the random sub-plot error term (i.e, the residual) will actually have fewer df than this, as I am excluding the drought data
 
 
 
-#dat <- subset(cue.day,select=c("Date","T_treatment","Water_treatment","chamber","CUE","RtoA","GPP_la","Ra_la","PAR","leafArea","Tair_24hrs"))
 dat2 <- subset(cue.day,Water_treatment=="control")
 dat2$T_treatment <- as.factor(dat2$T_treatment)
 dat2$DateFac <- as.factor(dat2$Date)
@@ -47,12 +45,15 @@ exponent.r <- value.r$x[which.max(value.r$y)]
 #dat2$Ra_latrans <- BoxCox(dat2$Ra_la,lambda=exponent.r)
 dat2$Ra_latrans <- log(exp(dat2$Ra_la^0.5))  # extensive transformation to make data amenable to ANOVA assumptions
 hist(dat2$Ra_latrans)
+
 dat2$leafArea_level <- cut(dat2$leafArea,breaks=6)#- variance is far from constant- it varies with leaf area.  Let's model it.
 boxplot(Ra_latrans~leafArea_level,data=dat2)
-dat2$leafArea_inv <- 1/dat2$leafArea
-dat2$Tlevel <- cut(dat2$Tair_24hrs,breaks=6)
+dat2$leafArea_inv <- 1/dat2$leafArea              #- the inverse of leaf area is used to model the variance for Ra below
+dat2$Tlevel <- cut(dat2$Tair_24hrs,breaks=6)      #- create 6 bins of temperature. Used to model variance for Ra/GPP below
 
-#- smaller subset of data, just to make the models run faster for now
+
+
+#- smaller subset of data, just to make the models run faster for testing
 dat3 <- subset(dat2,Date < as.Date("2013-12-1"))
 dat3$DateFac <- as.factor(dat3$Date)
 sp.test <- lme(Ra_latrans~T_treatment*DateFac,random=list(~1|chamber),
@@ -78,7 +79,6 @@ plot(sp.ra.ar1.reml,resid(.,type="p")~fitted(.) | T_treatment,abline=0)   #resid
 plot(sp.ra.ar1.reml,Ra_latrans~fitted(.)|chamber,abline=c(0,1))           #predicted vs. fitted for each chamber
 plot(sp.ra.ar1.reml,Ra_latrans~fitted(.),abline=c(0,1))                   #predicted vs. fitted
 qqnorm(sp.ra.ar1.reml, ~ resid(., type = "p"), abline = c(0, 1))          #qqplot. Departure at high values.
-anova(sp.ra.ar1.reml)
 anova(sp.ra.ar1.reml,type="marginal")
 Anova(sp.ra.ar1.reml)
 
@@ -86,8 +86,8 @@ Anova(sp.ra.ar1.reml)
 sp.ra.ar1.noint <- update(sp.ra.ar1,.~.-T_treatment:DateFac)
 sp.ra.ar1.reml.noint <- update(sp.ra.ar1.reml,.~.-T_treatment:DateFac)
 
-AIC(sp.ra.ar1,sp.ra.ar1.noint) # dropping the interaction results in a more parsimonious model (huge reduction in df)
-anova(sp.ra.ar1,sp.ra.ar1.noint)
+AIC(sp.ra.ar1,sp.ra.ar1.noint)   # dropping the interaction results in a more parsimonious model (huge reduction in df)
+anova(sp.ra.ar1,sp.ra.ar1.noint) # The interaction term should be removed. 
 
 # ANOVA for Ra
 anova(sp.ra.ar1.reml.noint,type="marginal") 
@@ -96,11 +96,11 @@ lsRa <- summary(lsmeans::lsmeans(sp.ra.ar1.reml.noint,"T_treatment"))
 (lsRa$lsmean[1]-lsRa$lsmean[2])/lsRa$lsmean[1]*100 # percentage change in response to warming
 
 #- estimate explainatory power (r2 values) of models with and without the warming by time interaction
-sem.model.fits(list(sp.ra.ar1,sp.ra.ar1.noint))                        
+sem.model.fits(list(sp.ra.ar1.reml,sp.ra.ar1.noint.reml))                        
 
-#- Warming by date interaction is "significant" for Ra_la, but excluding it drops the explanatory power of the model
-#    very modestly. Marginal r2 value declined from 0.70 to 0.68.
-#- Therefore the warming by date interaction is not actually that important in a quantatiative sense.
+#- Warming by date interaction for Ra_la should be removed, and excluding it drops the explanatory power of the model
+#    very modestly. 
+#- Therefore the warming by date interaction is not that important in a quantatiative sense.
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
 
@@ -119,13 +119,17 @@ sem.model.fits(list(sp.ra.ar1,sp.ra.ar1.noint))
 #-------------------------------------------------------------------------------------------------------------------
 #- GPP
 
+#- again, fit small subset of the data for testing purposes
 sp.test2 <- lme(log(GPP_la)~T_treatment*DateFac,random=list(~1|chamber),
                weights=varPower(value=0.2,form=~leafArea_inv),
                data=dat3,method="REML")
-plot(sp.test2,GPP_la~fitted(.),abline=c(0,1))                   #predicted vs. fitted
-qqnorm(sp.test2, ~ resid(., type = "p"), abline = c(0, 1))          #qqplot. Not perfect, but a huge improvement.
+plot(sp.test2,GPP_la~fitted(.),abline=c(0,1))                       #predicted vs. fitted
+qqnorm(sp.test2, ~ resid(., type = "p"), abline = c(0, 1))          #qqplot. Not perfect, but the log gives an improvement
 
 
+
+#- fit model to all data, and
+#- compare models with and without autocorrelation
 sp.gpp <- lme(log(GPP_la)~T_treatment*DateFac,random=list(~1|chamber),
               weights=varPower(value=0.2,form=~leafArea_inv),data=dat2,method="ML")
 sp.gpp.ar1 <- update(sp.gpp,correlation=corAR1(0.5,form=~1|chamber),method="ML")
@@ -136,10 +140,10 @@ anova(sp.gpp,sp.gpp.ar1) # model with autocorrelation is immensely better!
 sp.gpp.ar1.reml <- update(sp.gpp.ar1,method="REML")
 
 #look at model diagnostics
-plot(sp.gpp.ar1.reml,resid(.,type="p")~fitted(.) | T_treatment,abline=0)   #resid vs. fitted for each treatment
+plot(sp.gpp.ar1.reml,resid(.,type="p")~fitted(.) | T_treatment,abline=0)        #resid vs. fitted for each treatment
 plot(sp.gpp.ar1.reml,log(GPP_la)~fitted(.)|chamber,abline=c(0,1))               #predicted vs. fitted for each chamber
 plot(sp.gpp.ar1.reml,log(GPP_la)~fitted(.),abline=c(0,1))                       #predicted vs. fitted
-qqnorm(sp.gpp.ar1.reml, ~ resid(., type = "p"), abline = c(0, 1))          #qqplot
+qqnorm(sp.gpp.ar1.reml, ~ resid(., type = "p"), abline = c(0, 1))               #qqplot
 hist(sp.gpp.ar1.reml$residuals)
 
 
@@ -154,7 +158,7 @@ anova(sp.gpp.ar1.reml,type="marginal")
 #- estimate explainatory power (r2 values) of models with and without the warming by time interaction
 sem.model.fits(list(sp.gpp.ar1.reml,sp.gpp.ar1.reml.noint))   
 #- so the interaction between T_treatment and date is "significant" for GPP, and it is somewhat important.
-#- Marginal r2 drops from 0.9 to 0.89 when excluding the interaction
+#- Marginal r2 drops a small amount when excluding the interaction
 
 lsGpp <- summary(lsmeans::lsmeans(sp.gpp.ar1.reml,"T_treatment"))
 (lsGpp$lsmean[1]-lsGpp$lsmean[2])/lsGpp$lsmean[1]*100 # percentage change in response to warming
@@ -180,7 +184,7 @@ plot(diff~PAR,data=diff2);abline(h=0)  # warming effect is quite consistent on h
 
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
-#- Ra/GPP
+#- Ra/GPP. 
 
 #- find the "right" transformation
 sp.CUE.simple <- lm(RtoA~T_treatment*DateFac,data=dat2)
@@ -240,7 +244,8 @@ plot(sp.cue.ar1.reml.noout,RtoAtrans~fitted(.)|chamber,abline=c(0,1))           
 plot(sp.cue.ar1.reml.noout,RtoAtrans~fitted(.),abline=c(0,1))                   #predicted vs. fitted
 qqnorm(sp.cue.ar1.reml.noout, ~ resid(., type = "p"), abline = c(0, 1))         #qqplot. A bit better.
 
-#- we arrive at the same inference whether outliers are included or removed
+#- we arrive at the same inference whether outliers are included or removed.
+#- So, the non-normal residuals may not have strongly affected the statistical inference.
 anova(sp.cue.ar1.reml,type="marginal")
 anova(sp.cue.ar1.reml.noout,type="marginal")
 
@@ -347,42 +352,7 @@ anova(sp.CUE.hot2)
 lsmeans(sp.CUE.hot2,"T_treatment") 
 CIs2 <- intervals(sp.CUE.hot2,which="fixed")
 CIs2$fixed[2,] # 95% confidence intervals for T_treatment effect
-
-
-#- yet another alternative, ANCOVA
-
-plotBy(RtoA~Tair_24hrs|T_treatment,data=hot2)
-ancova.hot <- lm(RtoA~T_treatment+Tair_24hrs+T_treatment:Tair_24hrs,data=hot2)
-ancova.hot.noint <- update(ancova.hot,.~. -T_treatment:Tair_24hrs)
-
-#look at model diagnostics
-qqPlot(ancova.hot.noint, main="QQ Plot") #qq plot for studentized resid 
-plot(ancova.hot.noint)
-anova(ancova.hot.noint)
-
-#extract slope and 95% confidence interval
-coef(ancova.hot.noint)
-confint(ancova.hot.noint)
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
 
 
-
-#-------------------------------------------------------------------------------------------------------------------
-#-------------------------------------------------------------------------------------------------------------------
-#- sum Ra and GPP across the entire experiment or all chambers
-
-#- subset to just the pre-drought data?
-pre.drought <- subset(dat2,Date< as.Date("2014-2-12"))
-
-CUE.sum <- summaryBy(Ra_la+GPP_la~chamber+T_treatment,data=dat2,FUN=sum) # calculate sums for each chamber
-CUE.sum$RtoA <- with(CUE.sum,Ra_la.sum/GPP_la.sum)
-CUE.lm <- lm(RtoA~T_treatment,data=CUE.sum)
-anova(CUE.lm)
-summary(CUE.lm)
-confint(CUE.lm) # confidence interval for warming effect on Ra/GPP experiment-wise sums
-
-boxplot(RtoA~T_treatment,data=CUE.sum,col=c("grey","red"),ylab="Ra/GPP, experiment-wise sums",xlab="Treatment",
-        cex.lab=1.5)
-#-------------------------------------------------------------------------------------------------------------------
-#-------------------------------------------------------------------------------------------------------------------
