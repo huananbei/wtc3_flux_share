@@ -20,7 +20,7 @@ plotCUE_conceptual_fig <- function(toexport=T,Tdew=10,Ca=400,Vcmax=100,Jmax=125,
   #- predict photosynthesis and respiration with changing T (and VPD)
   output<- Photosyn(VPD=VPD,Ca=Ca,Vcmax=Vcmax,Jmax=Jmax,Tleaf=Tleaf,Tcorrect=T,Rd0=1,TrefR=20,PPFD=PPFD)
   output$AGROSS <- with(output,ALEAF+Rd)
-  output.acclim <-Photosyn(VPD=VPD,Ca=Ca,Vcmax=Vcmax,Jmax=Jmax*0.95,Tleaf=Tleaf,Tcorrect=T,Rd0=0.65,TrefR=20,delsJ=630,PPFD=PPFD)
+  output.acclim <-Photosyn(VPD=VPD,Ca=Ca,Vcmax=Vcmax*0.95,Jmax=Jmax*0.95,Tleaf=Tleaf,Tcorrect=T,Rd0=0.65,TrefR=20,delsJ=630,PPFD=PPFD)
   
   output.acclim$AGROSS <- with(output.acclim,ALEAF+Rd)
   
@@ -32,7 +32,7 @@ plotCUE_conceptual_fig <- function(toexport=T,Tdew=10,Ca=400,Vcmax=100,Jmax=125,
   
   #- plot
   windows(20,40);par(mfrow=c(2,1),mar=c(2,7,1,1),oma=c(3,0,2,0),las=1)
-  plot(AGROSS~Tleaf,data=output,type="l",ylab="",cex.lab=1.4,ylim=c(0,23),
+  plot(AGROSS~Tleaf,data=output,type="l",ylab="",cex.lab=1.4,ylim=c(0,25),
        col="forestgreen",lwd=2,xaxt="n",yaxt="n",frame.plot=F)
   magaxis(side=c(1,2,4),labels=c(1,1,0),frame.plot=T,majorn=3)
   title(ylab=expression(atop(Leaf~CO[2]~exchange,
@@ -40,7 +40,7 @@ plotCUE_conceptual_fig <- function(toexport=T,Tdew=10,Ca=400,Vcmax=100,Jmax=125,
   lines(AGROSS~Tleaf,data=output.acclim,type="l",col="forestgreen",lwd=2,lty=2)
   lines(Rd~Tleaf,data=output,col="brown",lwd=2)
   lines(Rd~Tleaf,data=output.acclim,col="brown",lwd=2,lty=2)
-  legend(x=22,y=27,xpd=NA,legend=c("A","R"),lwd=2,col=c("forestgreen","brown"),ncol=2,bty="n")
+  legend(x=23,y=30,xpd=NA,legend=c("A","R"),lwd=2,col=c("forestgreen","brown"),ncol=2,bty="n")
   legend("topleft","a",cex=1.1,bty="n",inset=-0.05)
   
   plot(RtoA~output$Tleaf,type="l",ylab="",ylim=c(0,0.6),cex.lab=1.3,lwd=2,col="black",xaxt="n",yaxt="n",
@@ -56,8 +56,8 @@ plotCUE_conceptual_fig <- function(toexport=T,Tdew=10,Ca=400,Vcmax=100,Jmax=125,
   
   #- overlay conceptual points
   
-  Arrows(x0=c(35,35),y0=c(0.155,0.155),x1=c(39,38),y1=c(0.32,0.155),lwd=3,col=c("red","orange"),arr.type="curved")
-  points(x=c(35,40,40),y=c(0.155,0.36,0.155),pch=16,col=c("black","red","orange"),cex=2.5)
+  Arrows(x0=c(35,35),y0=c(0.14,0.14),x1=c(39,38),y1=c(0.29,0.14),lwd=3,col=c("red","orange"),arr.type="curved")
+  points(x=c(35,40,40),y=c(0.14,0.32,0.14),pch=16,col=c("black","red","orange"),cex=2.5)
   
   
   if(toexport==T) dev.copy2pdf(file="./output/Figure1.pdf")
@@ -763,9 +763,9 @@ plotPartitionedFluxes <- function(dat.hr.gf3=dat.hr.gf3,ch_toplot="C07",startDat
   layout(matrix(c(1,2,3), 3, 1, byrow = TRUE), 
          widths=c(1,1,1), heights=c(1,1,3))
   plotBy(PAR~DateTime,xaxt="n",yaxt="n",data=subset(dat.hr.gf3,chamber==ch_toplot & as.Date(DateTime)>=startDate & 
-                                              as.Date(DateTime)<=endDate),ylab="PAR",lty=1,ylim=c(0,2000),type="l",legend=F,col="black")
+                                              as.Date(DateTime)<=endDate),ylab="PPFD",lty=1,ylim=c(0,2000),type="l",legend=F,col="black")
   magaxis(side=c(2,4),labels=c(1,0),frame.plot=T)
-  mtext(text="PAR",side=2,outer=F,line=4,cex=1.5,las=0)
+  mtext(text="PPFD",side=2,outer=F,line=4,cex=1.5,las=0)
   plotBy(Tair_al~DateTime,xaxt="n",yaxt="n",data=subset(dat.hr.gf3,chamber==ch_toplot & as.Date(DateTime)>=as.Date("2014-3-22") & 
                                                   as.Date(DateTime)<=as.Date("2014-3-27")),ylab="Tair",lty=1,ylim=c(11,34),type="l",legend=F,col="black")
   magaxis(side=c(2,4),labels=c(1,0),frame.plot=T)
@@ -899,9 +899,9 @@ plotPAR_AirT_CUE_GPP_Ra <- function(cue.day.trt=cue.day.trt,export=F,lwidth=2.5)
        ylim=c(-40,70),col="grey",lwd=2,xaxt="n",yaxt="n")
   magaxis(side=4,labels=F)
   axis(side=4,at=c(0,20,40,60),tick=F)
-  mtext(expression(atop(PAR,
+  mtext(expression(atop(PPFD,
                         (mol~d^-1))),side=4,las=0,cex=1.2,line=6.5)
-  legend("topright",c("PAR"),lty=c(1),lwd=3,col=c("grey"),ncol=1,bty="n",seg.len=3,cex=1.2)
+  legend("topright",c("PPDF"),lty=c(1),lwd=3,col=c("grey"),ncol=1,bty="n",seg.len=3,cex=1.2)
   legend("bottomright","a",bty="n",inset=-0.002,cex=1.5)
   
   
@@ -1033,7 +1033,7 @@ plotGPP_Ra_CUE_metdrivers <- function(cue.day=cue.day,export=T,shading=0.5,parcu
   title(ylab=expression(R[a]/GPP),outer=T,adj=0.15)
   magaxis(side=1:4,labels=c(1,0,0,1))
   
-  title(xlab=expression(PAR~(mol~d^-1)),outer=T,adj=0.08)
+  title(xlab=expression(PPFD~(mol~d^-1)),outer=T,adj=0.08)
   
   title(xlab=expression(T[air]~(degree*C*", 24-"*h~mean)),outer=T,adj=0.95)
   
@@ -1432,7 +1432,7 @@ plotAnet_met_diurnals <- function(export=T,lsize=2,size=2,printANOVAs=F){
     if(i >1 & i <5) magaxis(side=c(1,2,3,4),labels=c(1,0,0,0),las=1)
     if(i==5)magaxis(side=c(1,2,3,4),labels=c(1,0,0,0),las=1)
     
-    if(i==1)legend("topleft",c("T","PAR","VPD"),lty=1,lwd=lsize,bty="n",col=c("black","blue","red"),cex=1.2)
+    if(i==1)legend("topleft",c("T","PPFD","VPD"),lty=1,lwd=lsize,bty="n",col=c("black","blue","red"),cex=1.2)
     if(i==1) title(ylab=expression(Environmental~variables),xpd=NA,cex.lab=1.8,line=7)
     
     #- plot PAR in blue
