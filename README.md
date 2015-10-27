@@ -1,7 +1,7 @@
 # wtc3_flux_share
 Whole tree flux dataset and processing scripts. This repository contains the data and R code to replicate the figures and analyses presented in the following manuscript:
 
-"Does thermal acclimation to climate warming stabilize the ratio of canopy respiration to photosynthesis?"
+"Does physiological acclimation to climate warming stabilize the ratio of canopy respiration to photosynthesis?"
 Drake JE, Tjoelker MG, Aspinwall MJ, Reich PB, Barton CVM, Medlyn BE, Duursma RA 
 
 There are two ways to download and use this code.
