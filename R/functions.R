@@ -381,8 +381,7 @@ return_Rcanopy_closed <- function(){
     fits1[[i]] <- data.frame(chamber,id,T_treatment,Measurement,theta,Tair,RH,Rcanopy=out1[[i]])
   }
   fits <- do.call(rbind,fits1)
-  fits$mol_m3 <- 44.6 #(1*1000)/(0.0821*(273.15+fits$Tair))# calculate the mols of gas per m3 via pv=nrt. Remember 1m3 = 1000L. Assuming P = 1 atm
-
+  fits$mol_m3 <- 44.6 
   
   
   
@@ -586,7 +585,7 @@ plotRleafRbranch <- function(export=T){
   par(mfrow=c(1,2),mar=c(5,3,3,1),oma=c(1,4,0,0),cex.lab=2.5,las=1,cex.axis=1.8,cex.lab=2)
   
   #- plot leaves
-  barplot2(height=R1.m$Rleaf.mean,plot.ci=T,ci.l=R1.m$Rleaf.cil,ci.u=R1.m$Rleaf.ciu,xaxt="n",yaxt="n",ci.width=0.2,col=c("darkgrey","red"),
+  barplot2(height=R1.m$Rleaf.mean,plot.ci=T,ci.l=R1.m$Rleaf.cil,ci.u=R1.m$Rleaf.ciu,yaxt="n",ci.width=0.2,col=c("darkgrey","red"),
            names.arg=c("A","W"),ylim=c(0,4))
   legend("topright","a",bty="n",inset=-0.002,cex=1.5)
   magaxis(side=c(2,4),labels=c(1,0),frame.plot=T)
@@ -594,11 +593,11 @@ plotRleafRbranch <- function(export=T){
   title(xlab="Treatment",outer=F,line=3)
   
   #- plot branches
-  barplot2(height=R1.m$Rbranch.mean,plot.ci=T,ci.l=R1.m$Rbranch.cil,ci.u=R1.m$Rbranch.ciu,xaxt="n",yaxt="n",ci.width=0.2,col=c("darkgrey","red"),
+  barplot2(height=R1.m$Rbranch.mean,plot.ci=T,ci.l=R1.m$Rbranch.cil,ci.u=R1.m$Rbranch.ciu,yaxt="n",ci.width=0.2,col=c("darkgrey","red"),
            names.arg=c("A","W"),ylim=c(0,2))
   magaxis(side=c(2,4),labels=c(1,0),frame.plot=T)
   legend("topright","b",bty="n",inset=-0.002,cex=1.5)
-  title(main="Branches",cex.main=1.5)
+  title(main="Branch wood",cex.main=1.5)
   title(xlab="Treatment",outer=F,line=3)
   
   
@@ -901,7 +900,7 @@ plotPAR_AirT_CUE_GPP_Ra <- function(cue.day.trt=cue.day.trt,export=F,lwidth=2.5)
   axis(side=4,at=c(0,20,40,60),tick=F)
   mtext(expression(atop(PPFD,
                         (mol~d^-1))),side=4,las=0,cex=1.2,line=6.5)
-  legend("topright",c("PPDF"),lty=c(1),lwd=3,col=c("grey"),ncol=1,bty="n",seg.len=3,cex=1.2)
+  legend("topright",c("PPFD"),lty=c(1),lwd=3,col=c("grey"),ncol=1,bty="n",seg.len=3,cex=1.2)
   legend("bottomright","a",bty="n",inset=-0.002,cex=1.5)
   
   

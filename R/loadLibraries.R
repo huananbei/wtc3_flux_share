@@ -63,6 +63,10 @@ if (require("calibrate",quietly=T)==F) {
   install.packages("calibrate")
   library(calibrate,quietly=T)}
 
+if (require("MuMIn",quietly=T)==F) {
+  install.packages("MuMIn")
+  library(MuMIn,quietly=T)}
+
 # 
 # library(mgcv,quietly=T)
 # library(scales,quietly=T)
@@ -91,9 +95,7 @@ if (require("HIEv")==F) {
 if (require("plotBy")==F){ 
   install_bitbucket("remkoduursma/plotBy")
   library(plotBy,quietly=T)}
-if (require("piecewiseSEM")==F) {
-  install_github("jslefche/piecewiseSEM")
-  library(piecewiseSEM,quietly=T)}
+
 
 # library(piecewiseSEM,quietly=T) # for estimating r2 value in mixed-effects models
 # library(plantecophys,quietly=T) # for modeling leaf-level gas exchange

@@ -4,6 +4,7 @@
 #- Statistical analysis of Ra, GPP, and Ra/GPP (Table 1).
 #- Note that many of these analyses take considerable time to run. The entire script may take 10-20 minutes on a typical machine.
 
+#- This script assumes that the dataframe "cue.day" is available. Run "main_script.R" up to line 102 to create this dataframe.
 
 
 #- Here is a manual calculation of the expected degrees of freedom.
@@ -90,17 +91,29 @@ AIC(sp.ra.ar1,sp.ra.ar1.noint)   # dropping the interaction results in a more pa
 anova(sp.ra.ar1,sp.ra.ar1.noint) # The interaction term should be removed. 
 
 # ANOVA for Ra
+anova(sp.ra.ar1.reml,type="marginal") 
 anova(sp.ra.ar1.reml.noint,type="marginal") 
 
 lsRa <- summary(lsmeans::lsmeans(sp.ra.ar1.reml.noint,"T_treatment"))
 (lsRa$lsmean[1]-lsRa$lsmean[2])/lsRa$lsmean[1]*100 # percentage change in response to warming
 
 #- estimate explainatory power (r2 values) of models with and without the warming by time interaction
-sem.model.fits(list(sp.ra.ar1.reml,sp.ra.ar1.noint.reml))                        
 
+sp.ra.ar1.reml.noTrt <- update(sp.ra.ar1.noint,.~.-T_treatment)
+sp.ra.ar1.reml.noDate <- update(sp.ra.ar1.noint,.~.-DateFac)
+
+ra.full <- r.squaredGLMM(sp.ra.ar1.reml)[1]      # full model
+ra.noint <- r.squaredGLMM(sp.ra.ar1.reml.noint)[1] # model lacking interaction
+ra.notrt <- r.squaredGLMM(sp.ra.ar1.reml.noTrt)[1] # model lacking treatment and interaction
+ra.nodate <- r.squaredGLMM(sp.ra.ar1.reml.noDate)[1]
+
+ra.full
+ra.full-ra.noint
+ra.full-ra.notrt
+ra.full-ra.nodate
 #- Warming by date interaction for Ra_la should be removed, and excluding it drops the explanatory power of the model
-#    very modestly. 
-#- Therefore the warming by date interaction is not that important in a quantatiative sense.
+#    very modestly (marginal r2 was 0.504 with the interaction, 0.507 without the interaction).. 
+#- Therefore the warming by date interaction is not important in a quantatiative sense, and it should be removed.
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
 
@@ -154,23 +167,36 @@ sp.gpp.ar1.reml.noint <- update(sp.gpp.ar1.reml,.~.-T_treatment:DateFac)
 
 anova(sp.gpp.ar1,sp.gpp.ar1.noint) # dropping the interaction results in a poorer model. The interaction should stay.
 anova(sp.gpp.ar1.reml,type="marginal")
+anova(sp.gpp.ar1.reml.noint,type="marginal")  # note that there is a huge main effect of warming on GPP if the interaction is removed
+                                              # so on average, warming reduced GPP. But not equally on ALL dates.
 
 #- estimate explainatory power (r2 values) of models with and without the warming by time interaction
-sem.model.fits(list(sp.gpp.ar1.reml,sp.gpp.ar1.reml.noint))   
+sp.gpp.ar1.reml.noTrt <- update(sp.gpp.ar1.reml.noint,.~.-T_treatment)
+sp.gpp.ar1.reml.noDate <- update(sp.gpp.ar1.reml.noint,.~.-DateFac)
+
+gpp.full <- r.squaredGLMM(sp.gpp.ar1.reml)[1]      # full model
+gpp.noint <- r.squaredGLMM(sp.gpp.ar1.reml.noint)[1] # model lacking interaction
+gpp.notrt <- r.squaredGLMM(sp.gpp.ar1.reml.noTrt)[1] # model lacking treatment and interaction
+gpp.nodate <- r.squaredGLMM(sp.gpp.ar1.reml.noDate)[1] # model lacking date eraction
+
+gpp.full
+gpp.full-gpp.noint
+gpp.full-gpp.notrt
+gpp.full-gpp.nodate
 #- so the interaction between T_treatment and date is "significant" for GPP, and it is somewhat important.
-#- Marginal r2 drops a small amount when excluding the interaction
+#- Marginal r2 drops a small amount when excluding the interaction (0.902 with interaction, 0.894 without)
 
 lsGpp <- summary(lsmeans::lsmeans(sp.gpp.ar1.reml,"T_treatment"))
 (lsGpp$lsmean[1]-lsGpp$lsmean[2])/lsGpp$lsmean[1]*100 # percentage change in response to warming
 
 
 # extract and attempt to understand the GPP warming x date interaction
-lsGpp2 <- summary(lsmeans::lsmeans(sp.gpp.ar1.reml,specs=c("T_treatment","DateFac"))
+lsGpp2 <- summary(lsmeans::lsmeans(sp.gpp.ar1.reml,specs=c("T_treatment","DateFac")))
 lsGppa <- subset(lsGpp2,T_treatment=="ambient")
 lsGppe <- subset(lsGpp2,T_treatment=="elevated")
 diff <- data.frame(DateFac = lsGppa$DateFac,diff = (lsGppa$lsmean-lsGppe$lsmean)/lsGppa$lsmean)
 diff2 <- merge(diff,subset(dat2,T_treatment=="ambient"))
-plot(diff~PAR,data=diff2);abline(h=0)  # warming effect is quite consistent on high light days
+plot(diff~PAR,data=diff2);abline(h=0)  # warming effect is quite consistent on high light days, variable on low light days. 
                
 
 #-------------------------------------------------------------------------------------------------------------------
@@ -265,10 +291,22 @@ plot(diff~VPDair,data=subset(diffRtoA2,diff>-2));abline(h=0)  # warming effect t
 
 #- compare models with and without interaction terms
 sp.cue.ar1.noint <- update(sp.cue.ar1,.~.-T_treatment:DateFac)
+sp.cue.ar1.reml.noint <- update(sp.cue.ar1.reml,.~.-T_treatment:DateFac)
 anova(sp.cue.ar1,sp.cue.ar1.noint) # dropping the interaction results in a poorer model. The interaction is important.
 
 #- estimate explainatory power (r2 values) of models with and without the warming by time interaction
-sem.model.fits(list(sp.cue.ar1,sp.cue.ar1.noint))   
+sp.cue.ar1.reml.noTrt <- update(sp.cue.ar1.reml.noint,.~.-T_treatment)
+sp.cue.ar1.reml.noDate <- update(sp.cue.ar1.reml.noint,.~.-DateFac)
+
+cue.full <- r.squaredGLMM(sp.cue.ar1.reml)[1]      # full model
+cue.noint <- r.squaredGLMM(sp.cue.ar1.reml.noint)[1] # model lacking interaction
+cue.notrt <- r.squaredGLMM(sp.cue.ar1.reml.noTrt)[1] # model lacking treatment and interaction
+cue.nodate <- r.squaredGLMM(sp.cue.ar1.reml.noDate)[1] # model lacking date or interaction
+
+cue.full
+cue.full-cue.noint
+cue.full-cue.notrt
+cue.full-cue.nodate
 
 #- so the warming by date interaction is "significant" and leads to a better model, but it is quantitatively of modest 
 #-  importance, as the marginal r2 drops just a little when excluding the interaction.
@@ -285,8 +323,7 @@ sem.model.fits(list(sp.cue.ar1,sp.cue.ar1.noint))
 #-------------------------------------------------------------------------------------------------------------------
 
 #- merge models together to make Table 1
-table.r1 <- as.matrix(anova(sp.ra.ar1.reml.noint,type="marginal"))
-table.r1 <- rbind(table.r1,c(NA,NA,NA,NA))
+table.r1 <- as.matrix(anova(sp.ra.ar1.reml,type="marginal"))
 table.r2 <- cbind(table.r1,as.matrix(anova(sp.gpp.ar1.reml,type="marginal"))[1:4,1:4])
 table1 <- cbind(table.r2,as.matrix(anova(sp.cue.ar1.reml,type="marginal"))[1:4,1:4])[2:4,]
 row.names(table1) <- c("Warming","Date","Warming x Date")
@@ -321,6 +358,7 @@ plot(sp.CUE.hot,RtoA~fitted(.)|chamber,abline=c(0,1))         #predicted vs. fit
 plot(sp.CUE.hot,RtoA~fitted(.),abline=c(0,1))              #predicted vs. fitted
 qqnorm(sp.CUE.hot, ~ resid(., type = "p"), abline = c(0, 1))     #qqplot
 anova(sp.CUE.hot)
+anova(sp.CUE.hot,type="marginal")
 lsmeans(sp.CUE.hot,"T_treatment") 
 CIs <- intervals(sp.CUE.hot,which="fixed")
 CIs$fixed[2,] # 95% confidence intervals for T_treatment effect
