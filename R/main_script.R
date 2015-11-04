@@ -164,3 +164,45 @@ plotCUEvsT_partitioning_method(cue.day,cue.day2,export=export,shading=0.5)
 Ra_GPP_coupling(cue.day=cue.day,export=export,shading=0.7)
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+#-------------------------------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------
+#- Calculate climate metrics for methods
+
+#- difference in average daily air temperature
+#-- estimate the treatment effect on average daily air temperature
+
+#baddays <- as.Date(c("2014-03-11","2013-12-30","2014-03-15","2014-03-16","2014-03-17")) #these few bad days increase the SD.
+baddays <- c()
+Tdat <- cue.day[,c("Date","T_treatment","Tair_24hrs")]
+Tdat <- Tdat[with(Tdat,order(Date,T_treatment)),]
+Tdat.m <- summaryBy(Tair_24hrs~Date+T_treatment,data=Tdat[!(Tdat$Date %in% baddays),] ,FUN=mean)
+
+Tdat.a <- subset(Tdat.m,T_treatment=="ambient")
+Tdat.e <- subset(Tdat.m,T_treatment=="elevated")
+Tdat.both <- merge(Tdat.a,Tdat.e,by=c("Date"))
+Tdat.both$diff <- with(Tdat.both,Tair_24hrs.mean.y-Tair_24hrs.mean.x)
+mean(Tdat.both$diff);sd(Tdat.both$diff)
+
+
+#- average CO2 concentration during sunlit hours
+daytime <- subset(dat.hr.p,PAR>100)
+hist(daytime$CO2centralCh,xlim=c(350,600),breaks=101)
+mean(daytime$CO2centralCh,na.rm=T)
+summaryBy(CO2centralCh~T_treatment,data=daytime,FUN=c(mean,sd),na.rm=T)
+
+
+
+
+#- get relative humidity
+daytime$RH <- VPDtoRH(VPD=daytime$VPDair,TdegC=daytime$Tair_al)
+summaryBy(RH~T_treatment,data=daytime,FUN=c(mean,sd))
+summaryBy(VPDair~T_treatment,data=daytime,FUN=c(mean,sd))
+
+
+#-------------------------------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------
