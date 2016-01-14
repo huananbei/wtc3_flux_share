@@ -364,7 +364,7 @@ CIs <- intervals(sp.CUE.hot,which="fixed")
 CIs$fixed[2,] # 95% confidence intervals for T_treatment effect
 
 #-----
-#- alternatively, just analyze data above the inflection point between Ra/GPP and T (24-hr average T > 22)
+#- alternatively, just analyze data above the inflection point between Ra/GPP and T (24-hr average T > 22),
 hotDates2 <- unique(cue.day[which(cue.day$Tair_24hrs>22 & cue.day$T_treatment=="ambient"),"Date"]) # find dates with temperatures exceeding 40 deg C
 
 # summarize these hot dates
@@ -390,6 +390,39 @@ anova(sp.CUE.hot2)
 lsmeans(sp.CUE.hot2,"T_treatment") 
 CIs2 <- intervals(sp.CUE.hot2,which="fixed")
 CIs2$fixed[2,] # 95% confidence intervals for T_treatment effect
+
+
+
+
+
+
+#-----
+#- alternatively, just analyze all data where maximum air T exceeded 33 in warmed.
+#- note that most of tehse are the same dates where mean 24-hour temperature exceeded 22 deg C
+hotDates3 <- unique(dat.hr.p[which(dat.hr.p$Tair_al>33),"Date"]) # find dates with temperatures exceeding 33 deg C # find dates with temperatures exceeding 40 deg C
+
+# summarize these hot dates
+dat.hr.p.hot3 <- subset(dat.hr.p,Date %in% hotDates3)
+hotDates_met3 <- summaryBy(Tair_al~T_treatment+Date,data=dat.hr.p.hot3,FUN=c(mean,min,max),na.rm=T)
+summaryBy(Tair_al.mean+Tair_al.min+Tair_al.max~T_treatment,data=hotDates_met3) # average maximum temperature on these hot dates
+
+
+#- re-analyze on hot dates only. Capture heteroskedasticity across dates
+hot3 <- subset(dat2,Date %in% hotDates3)
+hot3$DateFac <- factor(hot3$DateFac)
+sp.CUE.hot3 <- lme(RtoA~T_treatment*DateFac,random=list(~1|chamber),
+                   weights=varIdent(form=~1|DateFac),
+                   data=hot3)
+
+#look at model diagnostics
+plot(sp.CUE.hot3,resid(.,type="p")~fitted(.) | T_treatment,abline=0)   #resid vs. fitted for each treatment
+plot(sp.CUE.hot3,RtoA~fitted(.)|chamber,abline=c(0,1))         #predicted vs. fitted for each chamber
+plot(sp.CUE.hot3,RtoA~fitted(.),abline=c(0,1))              #predicted vs. fitted
+qqnorm(sp.CUE.hot3, ~ resid(., type = "p"), abline = c(0, 1))     #qqplot. not bad
+anova(sp.CUE.hot3)
+lsmeans(sp.CUE.hot3,"T_treatment") 
+CIs3 <- intervals(sp.CUE.hot3,which="fixed")
+CIs3$fixed[2,] # 95% confidence intervals for T_treatment effect
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
 
