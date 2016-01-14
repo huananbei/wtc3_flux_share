@@ -107,6 +107,10 @@ plotPAR_AirT_CUE_GPP_Ra(cue.day.trt=cue.day.trt,export=export,lwidth=2.75)
 #- plot PAR and Temperaure dependence of GPP, Ra, and Ra/GPP (Figure 5)
 plotGPP_Ra_CUE_metdrivers(cue.day=cue.day,export=export,shading=0.7)
 
+#- plot T dependence of Ra/GPP, with drought data
+plot_CUE_temp_drought(cue.day=cue.day,export=F,shading=0.7,parcut=20)
+
+
 #- plot VPD and Tair dependence (Figure S2)
 plotVPD_Tair(dat=dat.hr,export=export)
 #-------------------------------------------------------------------------------------------------------------------
@@ -193,6 +197,7 @@ mean(Tdat.both$diff);sd(Tdat.both$diff)
 daytime <- subset(dat.hr.p,PAR>100)
 hist(daytime$CO2centralCh,xlim=c(350,600),breaks=101)
 mean(daytime$CO2centralCh,na.rm=T)
+median(daytime$CO2centralCh,na.rm=T)
 summaryBy(CO2centralCh~T_treatment,data=daytime,FUN=c(mean,sd),na.rm=T)
 
 
@@ -202,7 +207,16 @@ summaryBy(CO2centralCh~T_treatment,data=daytime,FUN=c(mean,sd),na.rm=T)
 daytime$RH <- VPDtoRH(VPD=daytime$VPDair,TdegC=daytime$Tair_al)
 summaryBy(RH~T_treatment,data=daytime,FUN=c(mean,sd))
 summaryBy(VPDair~T_treatment,data=daytime,FUN=c(mean,sd))
-
-
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+#--------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------
+#- attempt to plot the "whole-tree data" reviewers are asking for. I'm thinking of height and diameter
+#   as well as leaf area.
+plot_tree_size(export=F)
+  
