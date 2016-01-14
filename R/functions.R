@@ -56,6 +56,10 @@ plotCUE_conceptual_fig <- function(toexport=T,Tdew=10,Ca=400,Vcmax=100,Jmax=125,
   
   #- overlay conceptual points
   
+#   Arrows(x0=c(35),y0=c(0.14),x1=c(39),y1=c(0.29),lwd=3,col=c("red"),arr.type="curved")
+#   points(x=c(35,40),y=c(0.14,0.32),pch=16,col=c("black","red"),cex=2.5)
+#   
+  
   Arrows(x0=c(35,35),y0=c(0.14,0.14),x1=c(39,38),y1=c(0.29,0.14),lwd=3,col=c("red","orange"),arr.type="curved")
   points(x=c(35,40,40),y=c(0.14,0.32,0.14),pch=16,col=c("black","red","orange"),cex=2.5)
   
@@ -1044,6 +1048,54 @@ plotGPP_Ra_CUE_metdrivers <- function(cue.day=cue.day,export=T,shading=0.5,parcu
 
 
 
+
+
+
+
+#----------------------------------------------------------------------------------------------------------------
+# plot temperature drivers of and Ra/GPP
+
+plot_CUE_temp_drought <- function(cue.day=cue.day,export=T,shading=0.7,parcut=35){
+  
+  windows(30,20)
+  par(mfrow=c(1,2),mar=c(1,1,1,1),oma=c(6,7,1,3))
+  cue.day$combo <- factor(paste(cue.day$T_treatment,cue.day$Water_treatment))
+  
+  #- plot ambient temperature
+  smoothplot(Tair_24hrs, RtoA, combo,polycolor=c(alpha("lightgrey",shading),alpha("lightgrey",shading)),
+             linecols=c("blue","red"),pointcols=c("blue","red"),
+             random="chamber",
+             ylim=c(0,1),xlim=c(10,30),
+             data=subset(cue.day,PAR>parcut & T_treatment=="ambient" & Date > as.Date("2014-01-1")), kgam=5, axes=F)
+  legend("top","Ambient temperature",bty="n",inset=0.01,cex=2)
+  legend(x=10,y=0.8,c("Well-watered","Dry-down"),lty=1,lwd=2,bty="n",col=c("blue","red"),cex=2)
+  
+  title(ylab=expression(R[a]/GPP),outer=T,adj=0.5,cex.lab=3)
+  magaxis(side=1:4,labels=c(1,1,0,0),las=1,cex.axis=2)
+  
+  #- plot warmed
+  smoothplot(Tair_24hrs, RtoA, combo,polycolor=c(alpha("lightgrey",shading),alpha("lightgrey",shading)),
+             linecols=c("blue","red"),pointcols=c("blue","red"),
+             random="chamber",
+             ylim=c(0,1),xlim=c(10,30),
+             data=subset(cue.day,PAR>parcut & T_treatment=="elevated" & Date > as.Date("2014-01-1")), kgam=5, axes=F)
+  magaxis(side=1:4,labels=c(1,0,0,1),las=1,cex.axis=2)
+  legend("top","Warmed temperature",bty="n",inset=0.01,cex=2)
+  
+  title(xlab=expression(T[air]~(degree*C*", 24-"*h~mean)),outer=T,adj=0.5,cex.lab=2)
+  
+  if(export==T) dev.copy2pdf(file="output/RatoGPP_drought.pdf")
+}
+#----------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
 #----------------------------------------------------------------------------------------------------------------
 #' Function for smoothplots of GAMs. 
 fitgam <- function(X,Y,dfr, k=-1, R=NULL){
@@ -1270,7 +1322,7 @@ plotGPP_hex <- function(dat=dat.hr.p,export=F,shading=0.7){
   a <- subset(dat,PAR>10 & Water_treatment=="control" & T_treatment=="ambient")[,c("Tair_al","PAR","GPP","GPP_la","GPP_la_umol")]
   e <- subset(dat,PAR>10 & Water_treatment=="control" & T_treatment=="elevated")[,c("Tair_al","PAR","GPP","GPP_la","GPP_la_umol")]
   all <- subset(dat,PAR>10 & Water_treatment=="control")[,c("T_treatment","chamber","Date","Tair_al","PAR","GPP","GPP_la","GPP_la_umol")]
-  
+  all <- subset(all,GPP_la_umol < 20)
   
   #- create hex bins for a, e and all
   ha <- hexbin(a$Tair_al, a$PAR,xbins=30,IDs=TRUE)
@@ -1285,6 +1337,8 @@ plotGPP_hex <- function(dat=dat.hr.p,export=F,shading=0.7){
   
   colsa <- myColorRamp(c("blue","green","yellow", "red"), meanHexBina$mean)
   colse <- myColorRamp(c("blue","green","yellow", "red"), meanHexBine$mean)
+  colsall <- myColorRamp(c("blue","green","yellow", "red"), meanHexBinall$mean)
+  
 
   #-- plot Ambient
   windows()
@@ -1297,6 +1351,8 @@ plotGPP_hex <- function(dat=dat.hr.p,export=F,shading=0.7){
   pushHexport(Pa$plot.vp)
   
   #plots hexbins based on colors of third column
+  grid.hexagons(hall, style= "lattice", border = gray(.9), pen = colsall,  minarea = 1, maxarea = 1)
+  
   grid.hexagons(ha, style= "lattice", border = gray(.9), pen = colsa,  minarea = 1, maxarea = 1)
   if(export==T) dev.copy2pdf(file="output/Figure6a.pdf")
   
@@ -1635,3 +1691,214 @@ Ra_GPP_coupling <- function(cue.day=cue.day,export=export,shading=0.7,kgam=3){
 }
 #--------------------------------------------------------------------------------------------------
 #--------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#--------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------
+#- get the raw tree size data
+returnd2h <- function(plotson=0){
+  
+  
+  require(HIEv)
+  require(doBy)
+  require(plotBy)
+  require(zoo)
+
+  # Function for converting all columns in a dataframe to numeric
+  numericdfr <- function(dfr){
+    for(i in 1:ncol(dfr)){
+      options(warn=-1)
+      oldna <- sum(is.na(dfr[,i]))
+      num <- as.numeric(as.character(dfr[,i]))
+      if(sum(is.na(num)) > oldna)
+        next
+      else
+        dfr[,i] <- num
+    }
+    options(warn=0)
+    return(dfr)
+  }
+  
+  
+  #------------------------------------------------------------------------------------------------------------
+  # get the tree size data
+  size <- read.csv("data/WTC_TEMP_CM_TREE-HEIGHT-DIAMETER_20121120-20140527_L1_V2.CSV")
+  size$chamber_n <- as.numeric(substr(size$chamber,start=2,stop=3))
+  size$DateTime <- as.Date(size$DateTime)
+  
+  #do some processing to get d2h
+  size2 <- base::subset(size,select=c("DateTime","Days_since_transplanting","chamber_n","chamber","T_treatment",
+                                      "Water_treatment","Plant_height","Stem_number"))
+  size2$diam <- size[,18]
+  size2$diam_15 <- size[,16]
+  size3 <- subset(size2,chamber_n<=12 & Stem_number==1)
+  
+
+  
+  # tree 11 is different, because the height of stem 1 is not the actual true height. put the max height of the two stems in as the Plant_height
+  tree11 <- subset(size2,chamber_n==11)
+  tree11.max <- summaryBy(Plant_height~chamber_n+DateTime+Days_since_transplanting,data=tree11,FUN=max,na.rm=T,keep.names=T)
+  size3[which(size3$chamber_n==11),"Plant_height"] <- tree11.max$Plant_height
+  
+  
+  #- convert diameters to cm, heights to m
+  size3$diam <- size3$diam/10
+  size3$diam_15 <- size3$diam_15/10
+  size3$Plant_height <- size3$Plant_height/100
+  
+  #get rid of NA's
+  size4 <- subset(size3,diam>0)
+  size4 <- size4[with(size4,order(DateTime,chamber_n)),]
+  
+  #get just the data with diameter at 15
+  size_small <- subset(size3,diam_15>0 & year(DateTime)<2014)
+  #------------------------------------------------------------------------------------------------------------
+  
+  
+  # 
+  # #------------------------------------------------------------------------------------------------------------
+  # # gap fill diameter and height data
+  # 
+  # # create dataframe for all days
+  # alldates <- rep(seq.Date(from=as.Date(range(size4$DateTime)[1]),to=as.Date(range(size4$DateTime)[2]),by="day"),12)
+  # chamber_n <- c(rep(1,length(alldates)/12),rep(2,length(alldates)/12),rep(3,length(alldates)/12),rep(4,length(alldates)/12),
+  #                rep(5,length(alldates)/12),rep(6,length(alldates)/12),rep(7,length(alldates)/12),rep(8,length(alldates)/12),
+  #                rep(9,length(alldates)/12),rep(10,length(alldates)/12),rep(11,length(alldates)/12),rep(12,length(alldates)/12))
+  # datedf <- data.frame(chamber_n=chamber_n,DateTime=alldates)                                                                                             
+  # 
+  # #merge data in with dataframe of all days
+  # size5 <-merge(size4,datedf,all=T,by=c("chamber_n","DateTime"))
+  # 
+  # #break across list, gapfill list
+  # size6 <- zoo(size5)
+  # size6$Days_since_transplanting <- na.approx(size6$Days_since_transplanting)
+  # size6$Plant_height <- na.approx(size6$Plant_height)
+  # size6$diam <- na.approx(size6$diam)
+  # 
+  # 
+  # # get it back to a normal dataframe
+  # size7 <- numericdfr(fortify.zoo(size6))
+  # size7$DateTime <- as.Date(size7$DateTime)
+  # size7$d2h <- with(size7,(diam/10)^2*Plant_height)
+  # 
+  # # put some of the other bits back together
+  # size7$chamber <- as.factor(paste0("C",sprintf("%02.0f",size7$chamber_n)))
+  # size7$T_treatment <- as.factor(ifelse(size7$chamber_n %% 2 ==1,"ambient","elevated"))
+  # size7$Index <- NULL
+  # size7$Stem_number <- NULL
+  # #plotBy(d2h~DateTime|chamber_n,data=size7)
+  # 
+  
+  if (plotson==1){
+    windows(12,12);par(mfrow=c(2,1))
+    plotBy(diam~DateTime|chamber_n,data=size4,pch=15,ylim=c(0,100),legend=F,ylab="Diameter (mm)")
+    plotBy(diam~DateTime|chamber,type="l",lwd=2,data=size7,add=T,legend=F)
+    plotBy(Plant_height~DateTime|chamber_n,data=size4,pch=15,ylim=c(0,1000),legend=F,ylab="Height (cm)")
+    plotBy(Plant_height~DateTime|chamber,type="l",lwd=2,data=size7,add=T,legend=F)
+  }
+  
+  return(list(size4,size_small))
+}
+#--------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------
+
+
+
+
+#--------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------
+#- plot tree size over time
+
+plot_tree_size <- function(export=export){
+  
+  #-------------------
+  #- Get the three direct observations of leaf area. They happened on 9 Sept 2013, 10 Feb 2014, and
+  #    during the harvest at ~25 May 2014.
+  treeMass <- read.csv("data/WTC_TEMP_CM_WTCFLUX_20130910-20140530_L2_V1.csv")
+  treeMass.sub <- subset(treeMass,as.Date(DateTime) %in% as.Date(c("2013-09-14","2014-02-10","2014-05-27")))
+  treeMass.sub$Date <- as.Date(treeMass.sub$DateTime)
+  leafArea <- summaryBy(leafArea~Date+chamber+T_treatment,data=subset(treeMass.sub,Water_treatment=="control"),FUN=c(mean),keep.names=T)
+  leafArea1 <- summaryBy(leafArea~Date+T_treatment,data=leafArea,FUN=c(mean,standard.error))
+  
+  #-------------------
+  
+  #-------------------
+  #- Get tree diameters and heights
+  size.list <- returnd2h(plotson=0)
+  size <- size.list[[1]] # extract just the data after transplanting
+  size.m <- summaryBy(diam+Plant_height~DateTime+T_treatment,data=subset(size,Water_treatment=="control"),FUN=c(mean,standard.error))
+  
+  #- process the diameter at 15cm data, possibly for an inset
+  size2 <- subset(size.list[[2]],Days_since_transplanting>-60)
+  size2.m <- summaryBy(diam_15+Plant_height~DateTime+T_treatment,data=size2,FUN=c(mean,standard.error))
+  
+  
+  #-------------------
+  windows(20,40);par(mfrow=c(3,1),mar=c(0,9,0,3),oma=c(4,0,2,0),las=1,cex.axis=1.5)
+  
+  #- plot diameter
+  xlims <-as.Date(c("2013-3-1","2014-6-1"))
+  yearlims <-as.Date(c("2013-1-1","2014-1-1"))
+  plotBy(diam.mean~DateTime|T_treatment,data=size.m,pch=16,type="o",ylim=c(0,8),
+         xlim=xlims,
+         xaxt="n",yaxt="n",xlab="",ylab="",legend=F,
+         panel.first=adderrorbars(x=size.m$Date,y=size.m$diam.mean,
+                                  SE=size.m$diam.standard.error,direction="updown",
+                                  col=c("black","red")))
+  magaxis(side=c(2,4),labels=c(1,1),frame.plot=T,majorn=3,las=1)
+  axis.Date(side=1,at=seq.Date(from=xlims[1],to=xlims[2],by="month"),tcl=0.25,labels=F)
+  axis.Date(side=1,at=seq.Date(from=yearlims[1],to=yearlims[2],by="year"),tcl=0.75,labels=F)
+  title(ylab=expression(Diameter~(cm)),cex.lab=2)
+  abline(v=as.Date("2013-9-13"),lty=2)
+  text(x=as.Date("2013-9-13"),y=8.8,labels="Floors sealed",xpd=NA,cex=1.3)
+  
+  #- plot height
+  plotBy(Plant_height.mean~DateTime|T_treatment,data=size.m,pch=16,type="o",ylim=c(0,11),
+         xlim=xlims,
+         xaxt="n",yaxt="n",xlab="",ylab="",legend=F,
+         panel.first=adderrorbars(x=size.m$Date,y=size.m$Plant_height.mean,
+                                  SE=size.m$Plant_height.standard.error,direction="updown",
+                                  col=c("black","red")))
+  magaxis(side=c(2,4),labels=c(1,1),frame.plot=T,majorn=3,las=1)
+  axis.Date(side=1,at=seq.Date(from=xlims[1],to=xlims[2],by="month"),tcl=0.25,labels=F)
+  axis.Date(side=1,at=seq.Date(from=yearlims[1],to=yearlims[2],by="year"),tcl=0.75,labels=F)
+  title(ylab=expression(Height~(m)),cex.lab=2)
+  abline(v=as.Date("2013-9-13"),lty=2)
+  
+  #-- plot leaf area over time
+  plotBy(leafArea.mean~Date|T_treatment,data=leafArea1,pch=16,type="p",ylim=c(0,25),cex=1.5,
+         xlim=xlims,
+         xaxt="n",yaxt="n",xlab="",ylab="",legend=F,
+         panel.first=adderrorbars(x=leafArea1$Date,y=leafArea1$leafArea.mean,
+                                  SE=leafArea1$leafArea.standard.error,direction="updown",
+                                  col=c("black","red","black","red","black","red")))
+  magaxis(side=c(2,4),labels=c(1,1),frame.plot=T,majorn=3,las=1)
+  axis.Date(side=1,at=seq.Date(from=xlims[1],to=xlims[2],by="month"),tcl=0.25,labels=F)
+  axis.Date(side=1,at=seq.Date(from=yearlims[1],to=yearlims[2],by="year"),tcl=0.75,labels=T)
+  title(ylab=expression(Total~leaf~area~(m^2)),cex.lab=2)
+  abline(v=as.Date("2013-9-13"),lty=2)
+  if(export==T) dev.copy2pdf(file="output/treeSize.pdf")
+  
+}
+#--------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------
+
+
