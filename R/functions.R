@@ -564,6 +564,58 @@ plotRvsT_figure2 <- function(fits.mass=fits.mass,fits.trt=fits.trt,export=T){
 
 
 
+
+
+
+#----------------------------------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------------------------------------
+#- Compare linear and exponential fits of the canopy respiration dataset
+compareRlinearRexp <- function(fits.trt){
+  xlims <- c(15,35)
+  
+  #- fit exponential
+  fits.trt$invT <- 1/(fits.trt$Tair.mean+273.15)
+  fits.trt$logRarea <- log(fits.trt$R_la.mean)
+  lmRarea <- lm(logRarea~invT+T_treatment,data=fits.trt)
+  Rgas <- 8.314 #J per mol per K
+  A_amb2 <- unname(exp(coef(lmRarea)[1]))
+  A_ele2 <- unname(exp(coef(lmRarea)[1]+coef(lmRarea)[3]))
+  Ea2 <- unname(-1*coef(lmRarea)[2]*Rgas)
+  Q10 <- exp(10*Ea2/(Rgas*(25+273.15)^2))
+  xvals <- seq(18,32.1, length=101)
+  predA2 <- A_amb2*exp(-1*Ea2/(Rgas*(xvals+273.15)))
+  predE2 <- A_ele2*exp(-1*Ea2/(Rgas*(xvals+273.15)))
+  
+  #- fit linear
+  lmRlinear <- lm(R_la.mean~Tair.mean*T_treatment,data=fits.trt)
+  newdat <- data.frame(expand.grid(Tair.mean=xvals,T_treatment=levels(fits.trt$T_treatment)))
+  newdat$pred <- predict(lmRlinear,newdat)
+  
+  windows(40,30)
+  par(mar=c(5,8,1,3))
+  plotBy(R_la.mean~Tair.mean|T_treatment,data=fits.trt,type="p",pch=15,ylim=c(0,2),xlim=xlims,cex=1.6,cex.lab=1.6,legend=F,xaxt="n",yaxt="n",
+         ylab=expression(atop(R["canopy, area"],
+                              (mu*mol~CO[2]~m^-2~s^-1))),xlab=expression(T[air]~(degree*C)),
+         panel.first=adderrorbars(x=fits.trt$Tair.mean,y=fits.trt$R_la.mean,SE=fits.trt$R_la.standard.error,direction="updown"))
+  magaxis(side=c(1,2,3,4),labels=c(1,1,0,1))
+  
+  #- overlay linear predictions
+  plotBy(pred~Tair.mean|T_treatment,type="l",lty=2,add=T,data=newdat,lwd=2)
+  #- overlay exponential
+  lines(x=xvals,y=predA2,col="black",lwd=2)
+  lines(x=xvals,y=predE2,col="red",lwd=2)
+  
+  summary(lmRarea)
+  summary(lmRlinear)
+  
+  
+
+}
+#----------------------------------------------------------------------------------------------------------------
+
+
+
+
 #----------------------------------------------------------------------------------------------------------------
 #----------------------------------------------------------------------------------------------------------------
 #- get and plot the Rleaf and Branch data near the end of the experiment
@@ -634,8 +686,39 @@ plotRleafRbranch <- function(export=T){
   #   
   
   if (export==T) dev.copy2pdf(file="output/Figure3.pdf")
+  
 }
 #----------------------------------------------------------------------------------------------------------------
+
+
+#----------------------------------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------------------------------------
+compareR15 <- function(){
+  #-- apparently our respiraiton data at 15 deg C (Fig. 3) were "too low", according to one reviewer.
+  #- Below is a comparison of these data to Owen Atkin's global compilation, to show that our measurements
+  #- are biologically reasonable.
+  
+  #- read in and process our data. Note that these were collected at 15 deg C.
+  Rbranch <- read.csv("data/WTC_TEMP_CM_GX-RBRANCH_20140513-20140522_L1_v1.csv")
+  Rbranch$date <- as.Date(Rbranch$date)
+  Rbranch$campaign <- ifelse(Rbranch$date == as.Date("2014-05-13"),1,2)
+  R1 <- subset(Rbranch,campaign==1)
+  R1$Rleaf_area <- with(R1,Rleaf*1/SLA*10000/1000)
+  
+  #- read in Owen's data
+  globresp <- read.csv("data/GlobResp database_Atkin et al 2015_New Phytologist.csv",skip=16)
+  globresp$Rleaf_area <- with(globresp,Rdarka_25C_FixedQ10*FixedQ10**((15-25)/10))
+  globresp2 <- subset(globresp,PFT_LPJ %in% c("TmpEvBl","TmpDcBl")) #- subset temperate broadleaved observations
+  
+  dat <- rbind(data.frame(R=R1$Rleaf_area,source="Drake"),data.frame(R=globresp2$Rleaf_area,source=globresp2$PFT_LPJ))
+  dat$source <- factor(dat$source)
+  levels(dat$source) <- c("Drake","Atkin-TDec","Atkin-TEv")
+  windows();par(mar=c(4,7,1,1))
+  boxplot(R~source,data=dat,ylab=expression(R["leaf 15"]~(mu*mol~CO[2]~m^-2~s^-1)),xlab="Source",cex.lab=2)
+}
+#----------------------------------------------------------------------------------------------------------------
+
+
 
 
 #----------------------------------------------------------------------------------------------------------------
@@ -660,14 +743,16 @@ plotRleafRbranch <- function(export=T){
 adderrorbars <- function(x,y,SE,direction,barlen=0.04,...){
   
   if(length(direction)>1)stop("direction must be of length one.")
-  if(direction == "updown")
-    direction <- c("up","down")
-  else if(direction == "rightleft" | direction == "leftright")direction <- c("left","right")
+  #if(direction == "updown")
+  #  direction <- c("up","down")
+  if(direction == "rightleft" | direction == "leftright")direction <- c("left","right")
   
   if("up" %in% direction)
     arrows(x0=x, x1=x, y0=y, y1=y+SE, code=3, angle=90, length=barlen,...)
   if("down" %in% direction) 
     arrows(x0=x, x1=x, y0=y, y1=y-SE, code=3, angle=90, length=barlen,...)
+  if("updown" %in% direction) 
+    arrows(x0=x, x1=x, y0=y+SE, y1=y-SE, code=3, angle=90, length=barlen,...)
   if("left" %in% direction) 
     arrows(x0=x, x1=x-SE, y0=y, y1=y, code=3, angle=90, length=barlen,...)
   if("right" %in% direction)
@@ -1047,6 +1132,93 @@ plotGPP_Ra_CUE_metdrivers <- function(cue.day=cue.day,export=T,shading=0.5,parcu
 
 
 
+plotNetC_metdrivers <- function(cue.day=cue.day,export=T,shading=0.5,parcut=35){
+  
+  
+  palette(alpha(c("black","red"),0.5))
+  
+  windows(30,30);par(mfrow=c(2,2),mar=c(0,0,0,0),oma=c(7,7,1,3),las=1,cex.lab=1.8,cex.axis=1.2)
+  
+  #- plot NetC
+  smoothplot(PAR, netC, T_treatment,polycolor=NA,linecol=NA,#polycolor=c(alpha("lightgrey",shading),alpha("lightgrey",shading)),
+             random="chamber",
+             ylim=c(0,100),
+             data=cue.day, kgam=3, axes=F)
+  title(ylab=expression(Raw~net~C~gain~(gC~d^-1)),outer=T,adj=0.95)
+  magaxis(side=1:4,labels=c(0,1,0,0))
+  legend("topright","a",bty="n",inset=-0.01,cex=1.2)
+  
+  smoothplot(Tair_24hrs, netC, T_treatment,polycolor=NA,linecol=NA,#polycolor=c(alpha("lightgrey",shading),alpha("lightgrey",shading)),
+             random="chamber",
+             ylim=c(0,100),
+             data=subset(cue.day,PAR>parcut), kgam=5,axes=F)
+  magaxis(side=1:4,labels=c(0,0,0,0))
+  legend("topright","b",bty="n",inset=0.01,cex=1.2)
+  magaxis(side=1:4,labels=c(0,0,0,1))
+  
+  #- plot NetC_la
+  smoothplot(PAR, netC_la, T_treatment,polycolor=c(alpha("lightgrey",shading),alpha("lightgrey",shading)),
+             random="chamber",
+             ylim=c(0,9),
+             data=cue.day, kgam=5, axes=F)
+  title(ylab=expression(Net~C~gain~(gC~m^-2~d^-1)),outer=T,adj=0.05)
+  magaxis(side=1:4,labels=c(0,1,0,0))
+  legend("topright","c",bty="n",inset=-0.01,cex=1.2)
+  
+  smoothplot(Tair_24hrs, netC_la, T_treatment,polycolor=c(alpha("lightgrey",shading),alpha("lightgrey",shading)),
+             random="chamber",
+             ylim=c(0,9),
+             data=subset(cue.day,PAR>parcut), kgam=5,axes=F)
+  magaxis(side=1:4,labels=c(0,0,0,0))
+  legend("topright","d",bty="n",inset=0.01,cex=1.2)
+  magaxis(side=1:4,labels=c(0,0,0,1))
+  
+  
+  
+  title(xlab=expression(PPFD~(mol~d^-1)),outer=T,adj=0.15)
+  
+  title(xlab=expression(T[air]~(degree*C*", 24-"*h~mean)),outer=T,adj=0.9)
+  
+  #if(export==T) dev.copy2pdf(file="output/Figure5.pdf")
+}
+
+
+
+
+plotClosstogainratio_metdrivers <- function(cue.day=cue.day,export=T,shading=0.5,parcut=35){
+  
+  
+  palette(alpha(c("black","red"),0.5))
+  
+  windows(50,30);par(mfrow=c(1,2),mar=c(0,0,0,0),oma=c(7,7,1,3),las=1,cex.lab=1.8,cex.axis=1.2)
+  
+  #- plot raw ratio of C loss to C gain
+  smoothplot(PAR, Closs_Cgain, T_treatment,polycolor=c(alpha("lightgrey",shading),alpha("lightgrey",shading)),
+             random="chamber",
+             ylim=c(0,1),
+             data=cue.day, kgam=5, axes=F)
+  title(ylab=expression(C~loss~"/"~C~gain),outer=T,adj=0.5)
+  magaxis(side=1:4,labels=c(1,1,0,0))
+  legend("topright","a",bty="n",inset=0.01,cex=1.2)
+  
+  smoothplot(Tair_24hrs, Closs_Cgain, T_treatment,polycolor=c(alpha("lightgrey",shading),alpha("lightgrey",shading)),
+             random="chamber",
+             ylim=c(0,1),
+             data=subset(cue.day,PAR>parcut), kgam=5,axes=F)
+  magaxis(side=1:4,labels=c(0,0,0,0))
+  legend("topright","b",bty="n",inset=0.01,cex=1.2)
+  magaxis(side=1:4,labels=c(1,0,0,1))
+  
+  
+  
+  
+  title(xlab=expression(PPFD~(mol~d^-1)),outer=T,adj=0.15)
+  
+  title(xlab=expression(T[air]~(degree*C*", 24-"*h~mean)),outer=T,adj=0.9)
+  
+  #if(export==T) dev.copy2pdf(file="output/Figure5.pdf")
+}
+
 
 
 
@@ -1351,7 +1523,7 @@ plotGPP_hex <- function(dat=dat.hr.p,export=F,shading=0.7){
   pushHexport(Pa$plot.vp)
   
   #plots hexbins based on colors of third column
-  grid.hexagons(hall, style= "lattice", border = gray(.9), pen = colsall,  minarea = 1, maxarea = 1)
+  #grid.hexagons(hall, style= "lattice", border = gray(.9), pen = colsall,  minarea = 1, maxarea = 1)
   
   grid.hexagons(ha, style= "lattice", border = gray(.9), pen = colsa,  minarea = 1, maxarea = 1)
   if(export==T) dev.copy2pdf(file="output/Figure6a.pdf")
@@ -1499,6 +1671,9 @@ plotAnet_met_diurnals <- function(export=T,lsize=2,size=2,printANOVAs=F){
     #- plot VPD in red
     par(new=T)
     plotBy(VpdL.mean~Hour.mean,data=subset(toplot,T_treatment=="ambient"),lty=1,lwd=lsize,
+           legend=F,pch=16,xaxt="n",yaxt="n",type="l",col="red",cex=size,ylim=c(0,7),xlim=xlims)
+    #- add VPD of warmed
+    plotBy(VpdL.mean~Hour.mean,data=subset(toplot,T_treatment=="elevated"),lty=2,lwd=lsize,add=T,
            legend=F,pch=16,xaxt="n",yaxt="n",type="l",col="red",cex=size,ylim=c(0,7),xlim=xlims)
     
     if(i==3)title(xlab="Hour",cex.lab=1.5,xpd=NA)
@@ -1852,7 +2027,7 @@ plot_tree_size <- function(export=export){
   
   
   #-------------------
-  windows(20,40);par(mfrow=c(3,1),mar=c(0,9,0,3),oma=c(4,0,2,0),las=1,cex.axis=1.5)
+  windows(20,40);par(mfrow=c(3,1),mar=c(0,9,0,3),oma=c(6,0,2,0),las=1,cex.axis=1.5)
   
   #- plot diameter
   xlims <-as.Date(c("2013-3-1","2014-6-1"))
@@ -1860,41 +2035,47 @@ plot_tree_size <- function(export=export){
   plotBy(diam.mean~DateTime|T_treatment,data=size.m,pch=16,type="o",ylim=c(0,8),
          xlim=xlims,
          xaxt="n",yaxt="n",xlab="",ylab="",legend=F,
-         panel.first=adderrorbars(x=size.m$Date,y=size.m$diam.mean,
+         panel.first=adderrorbars(x=size.m$Date,y=size.m$diam.mean,barlen=0.02,
                                   SE=size.m$diam.standard.error,direction="updown",
                                   col=c("black","red")))
   magaxis(side=c(2,4),labels=c(1,1),frame.plot=T,majorn=3,las=1)
   axis.Date(side=1,at=seq.Date(from=xlims[1],to=xlims[2],by="month"),tcl=0.25,labels=F)
-  axis.Date(side=1,at=seq.Date(from=yearlims[1],to=yearlims[2],by="year"),tcl=0.75,labels=F)
+  axis.Date(side=1,at=seq.Date(from=xlims[1],to=xlims[2],by="quarter"),tcl=0.75,labels=F)
   title(ylab=expression(Diameter~(cm)),cex.lab=2)
   abline(v=as.Date("2013-9-13"),lty=2)
   text(x=as.Date("2013-9-13"),y=8.8,labels="Floors sealed",xpd=NA,cex=1.3)
+  legend("topleft",pch=16,lty=c(1),col=c("black","red"),legend=c("Ambient","Warmed"),bty="n",cex=1.2)
+  legend("bottomright","a",bty="n",inset=0.002,cex=1.2)
   
   #- plot height
   plotBy(Plant_height.mean~DateTime|T_treatment,data=size.m,pch=16,type="o",ylim=c(0,11),
          xlim=xlims,
          xaxt="n",yaxt="n",xlab="",ylab="",legend=F,
-         panel.first=adderrorbars(x=size.m$Date,y=size.m$Plant_height.mean,
+         panel.first=adderrorbars(x=size.m$Date,y=size.m$Plant_height.mean,barlen=0.02,
                                   SE=size.m$Plant_height.standard.error,direction="updown",
                                   col=c("black","red")))
   magaxis(side=c(2,4),labels=c(1,1),frame.plot=T,majorn=3,las=1)
   axis.Date(side=1,at=seq.Date(from=xlims[1],to=xlims[2],by="month"),tcl=0.25,labels=F)
-  axis.Date(side=1,at=seq.Date(from=yearlims[1],to=yearlims[2],by="year"),tcl=0.75,labels=F)
+  axis.Date(side=1,at=seq.Date(from=xlims[1],to=xlims[2],by="quarter"),tcl=0.75,labels=F)
   title(ylab=expression(Height~(m)),cex.lab=2)
   abline(v=as.Date("2013-9-13"),lty=2)
+  legend("bottomright","b",bty="n",inset=0.002,cex=1.2)
   
   #-- plot leaf area over time
   plotBy(leafArea.mean~Date|T_treatment,data=leafArea1,pch=16,type="p",ylim=c(0,25),cex=1.5,
          xlim=xlims,
          xaxt="n",yaxt="n",xlab="",ylab="",legend=F,
-         panel.first=adderrorbars(x=leafArea1$Date,y=leafArea1$leafArea.mean,
+         panel.first=adderrorbars(x=leafArea1$Date,y=leafArea1$leafArea.mean,barlen=0.02,
                                   SE=leafArea1$leafArea.standard.error,direction="updown",
                                   col=c("black","red","black","red","black","red")))
   magaxis(side=c(2,4),labels=c(1,1),frame.plot=T,majorn=3,las=1)
   axis.Date(side=1,at=seq.Date(from=xlims[1],to=xlims[2],by="month"),tcl=0.25,labels=F)
-  axis.Date(side=1,at=seq.Date(from=yearlims[1],to=yearlims[2],by="year"),tcl=0.75,labels=T)
+  axis.Date(side=1,at=seq.Date(from=xlims[1],to=xlims[2],by="quarter"),tcl=0.75,labels=T,las=2,
+            format="%b")
   title(ylab=expression(Total~leaf~area~(m^2)),cex.lab=2)
   abline(v=as.Date("2013-9-13"),lty=2)
+  legend("bottomright","c",bty="n",inset=0.002,cex=1.2)
+  
   if(export==T) dev.copy2pdf(file="output/treeSize.pdf")
   
 }

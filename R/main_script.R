@@ -74,6 +74,9 @@ plotRvsT_figure2(fits.mass=fits.mass,fits.trt=fits.trt,export=export)
 #-------------------------------------------------------------------------------------------------------------------
 #- plot Rbranch and Rleaf measured at 15 degrees C (Figure 3)
 plotRleafRbranch(export=export)
+
+#- compare Rleaf 15 to Owen Atkin's GlobResp database
+compareR15()
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
 
@@ -113,6 +116,15 @@ plot_CUE_temp_drought(cue.day=cue.day,export=F,shading=0.7,parcut=20)
 
 #- plot VPD and Tair dependence (Figure S2)
 plotVPD_Tair(dat=dat.hr,export=export)
+
+
+#- explore the reviewer comment regarding net C flux
+#- calculate leaf-area specific rates of GPP, convert to umol CO2 m-2 s-1
+cue.day$netC <- with(cue.day,Cgain+Closs) #g C day-1
+cue.day$netC_la <- with(cue.day,netC/leafArea)
+cue.day$Closs_Cgain <- with(cue.day,(-1*Closs)/Cgain)
+plotNetC_metdrivers(cue.day=cue.day,export=export,shading=0.7)
+plotClosstogainratio_metdrivers(cue.day=cue.day,export=export,shading=0.7)
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
 
@@ -140,6 +152,51 @@ plotGPP_hex(dat=dat.hr.p,export=export,shading=0.7)
 plotAnet_met_diurnals(export=export,lsize=2,printANOVAs=F)
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
+
+
+
+
+#-------------------------------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------
+#- compare the leaf-to-canopy photosyntehsis scaling, for 20-Feb-2014
+
+#------------------------------------
+#- get diurnal data
+diurnal <- read.csv("data/WTC_TEMP_CM_GX-DIURNAL_20130710-20140220_L1_v2.csv")
+diurnal$DateTime <- as.POSIXct(diurnal$DateTime,format="%Y-%m-%d %T",tz="GMT")
+diurnal$Date <- as.Date(diurnal$DateTime)
+diurnal$Hour <- hour(diurnal$DateTime)
+diurnal$timepoint <- as.factor(diurnal$timepoint)
+
+focaldate <- as.Date("2013-12-4")
+
+leaf.m <- summaryBy(Photo+Cond+Tleaf+VpdL+PARi+DateTime+Hour~ T_treatment+Date+timepoint,
+                     data=subset(diurnal,position=="top" & Date==focaldate),FUN=c(mean,standard.error),na.rm=T)
+
+#- get teh flux data for that day
+canopyexample <- subset(dat.hr.p,Date==focaldate)
+canopyexample$Hour <- hour(canopyexample$DateTime)
+#- Calculate GPP per unit leaf area, convert to umol CO2 m-2 s-1
+canopyexample$GPP_la <- with(canopyexample,GPP/leafArea)
+canopyexample$GPP_la_umol <- with(canopyexample,GPP_la/12*1*10^6/60/60)
+canopy.m <- summaryBy(GPP_la_umol~ T_treatment+Hour,
+                    data=subset(canopyexample,Hour>4 & Hour<22),FUN=c(mean,standard.error),na.rm=T)
+
+windows();par(mar=c(5,7,1,3))
+ylims=c(0,25)
+xlims=c(5,20)
+size=2
+plotBy(Photo.mean~Hour.mean|T_treatment,data=leaf.m,legend=F,pch=16,xaxt="n",yaxt="n",type="b",cex=size,ylim=ylims,xlim=xlims,
+       xlab="",ylab="",
+       panel.first=adderrorbars(x=leaf.m$Hour.mean,y=leaf.m$Photo.mean,SE=leaf.m$Photo.standard.error,direction="updown"))
+plotBy(GPP_la_umol.mean~Hour|T_treatment,data=canopy.m,legend=F,pch=1,xaxt="n",yaxt="n",type="b",cex=size,ylim=ylims,xlim=xlims,add=T,
+       panel.first=adderrorbars(x=canopy.m$Hour,y=canopy.m$GPP_la_umol.mean,SE=canopy.m$GPP_la_umol.standard.error,direction="updown"))
+magaxis(side=c(1,2,4),las=1)
+title(ylab=expression(Photo~(mu*mol~CO[2]~m^-2~s^-1)),
+      xlab="Hour",cex.lab=2)
+legend("topright",pch=c(16,16,1,1),col=c("black","red","black","red"),legend=c("Leaf-A","Leaf-W","Canopy-A","Canopy-W"),cex=2)
+#-------------------------------------------------------------------------------------------------------------------
+
 
 
 
@@ -180,7 +237,7 @@ Ra_GPP_coupling(cue.day=cue.day,export=export,shading=0.7)
 #- difference in average daily air temperature
 #-- estimate the treatment effect on average daily air temperature
 
-#baddays <- as.Date(c("2014-03-11","2013-12-30","2014-03-15","2014-03-16","2014-03-17")) #these few bad days increase the SD.
+#baddays <- as.Date(c("2014-03-11","2013-12-30","2014-03-15","2014-03-16","2014-03-17")) #these few bad days increase the SD, but that is okay.
 baddays <- c()
 Tdat <- cue.day[,c("Date","T_treatment","Tair_24hrs")]
 Tdat <- Tdat[with(Tdat,order(Date,T_treatment)),]
@@ -207,6 +264,14 @@ summaryBy(CO2centralCh~T_treatment,data=daytime,FUN=c(mean,sd),na.rm=T)
 daytime$RH <- VPDtoRH(VPD=daytime$VPDair,TdegC=daytime$Tair_al)
 summaryBy(RH~T_treatment,data=daytime,FUN=c(mean,sd))
 summaryBy(VPDair~T_treatment,data=daytime,FUN=c(mean,sd))
+
+
+#- get water potentials
+wp <- read.csv("data/WTC_TEMP_CM_WATERPOTENTIAL-PREDAWN-MIDDAY_20130515-20140424_L2.csv")
+wp$date <- as.Date(wp$date,format="%d/%m/%Y")
+wp.ch <- summaryBy(predawn+midday~T_treatment+chamber,data=subset(wp,Water_treatment=="control"),na.rm=T,keep.names=T)
+wp.t <- summaryBy(predawn+midday~T_treatment,data=wp.ch,na.rm=T,FUN=c(mean,standard.error))
+
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
 
@@ -216,7 +281,6 @@ summaryBy(VPDair~T_treatment,data=daytime,FUN=c(mean,sd))
 
 #--------------------------------------------------------------------------------------------------
 #--------------------------------------------------------------------------------------------------
-#- attempt to plot the "whole-tree data" reviewers are asking for. I'm thinking of height and diameter
-#   as well as leaf area.
-plot_tree_size(export=F)
+#- Process and plot the "whole-tree data" reviewers are asking for. Diameter, height, and leaf area.
+plot_tree_size(export=T)
   
