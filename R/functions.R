@@ -80,10 +80,8 @@ return.leaks <- function(plotson=0){
   # I did leak tests for WTC chambers #1-4 on the night of 27 May 2014, and all 12 chambers on 28 May 2014.
 
   #read in all the minutely data
-  dat1.1 <- read.csv(file="data/Min140527.csv")
-  dat1.2 <- read.csv(file="data/Min140528.csv")
-  dat1.3 <- read.csv(file="data/Min140529.csv")
-  dat <- subset(rbind(dat1.1,dat1.2,dat1.3),chamber<13)
+  leakdat <- read.csv(file="data/WTC_TEMP_CM_WTCFLUX-LEAKS_20140527-20140529_L1.csv")
+  dat <- subset(leakdat,chamber<13)
   dat$datetime <- as.POSIXct(paste(dat$date,dat$time,sep=" "),format="%Y-%m-%d %H:%M:%S",tz="GMT")
   
   #set up the times for start and end times for the two nights
@@ -171,7 +169,7 @@ return.leaks <- function(plotson=0){
   for (i in 1:length(dat2.list)){
     dat <- dat2.list[[i]]
     
-    out2[i] <- suppressWarnings(optimise(f=leak.mod,interval=c(0,0.5),V=30,Ca=dat$CO2ref,Ci=dat$CO2L,fit=1))
+    out2[i] <- suppressWarnings(optimise(f=leak.mod,interval=c(0,0.5),V=53,Ca=dat$CO2ref,Ci=dat$CO2L,fit=1))
   }
   
   leaks_day1 <- data.frame(theta=do.call(rbind,out1))
@@ -243,11 +241,7 @@ return_Rcanopy_closed <- function(){
   #------------------------------------------------------
   #------------------------------------------------------
   #read in the minutely IRGA data, including a local IRGA (CO2L) and a central LI7000 (CO2CConc)
-  Min1 <- read.csv("data/Min140212.csv")
-  Min2 <- read.csv("data/Min140213.csv")
-  
-  
-  Mindat1 <- rbind(Min1,Min2)
+  Mindat1 <- read.csv("data/WTC_TEMP_CM_WTCFLUX-CLOSED_20140212-20140213_L1.csv")
   Mindat1$DateTime <- paste(Mindat1$date,Mindat1$time,sep=" ")
   Mindat1$DateTime <- as.POSIXct(Mindat1$DateTime,tz="GMT")
   
@@ -320,8 +314,7 @@ return_Rcanopy_closed <- function(){
   
   
   #----------------------------------------------------------------------------------------------
-  # get the chamber temperatures by downloading the inside met data from HIEv
-  #downloadHIEv(searchHIEv("WTC_TEMP_CM_WTCMET_20140201-20140228_L1_v1.csv"),topath="data/from HIEv")
+  # get the chamber temperatures from the inside met data from HIEv
   met <- read.csv("data/WTC_TEMP_CM_WTCMET_20140201-20140228_L1_v1.csv")
   met$DateTime <- as.POSIXct(met$DateTime,tz="GMT")
   #met2 <- subset(met,DateTime>starttime1 & DateTime < stoptime5)
@@ -781,6 +774,7 @@ standard.error <- function(dat,na.rm=F,...){
 
 
 #----------------------------------------------------------------------------------------------------------------
+#- function to parition the hourly net flux observations into GPP and Ra using an Arrhenious function
 partitionHourlyFluxCUE_arr <- function(dat.hr.gf=dat.hr.gf,Ea=57.69,lagdates,leafRtoTotal = 1,leafRreduction=0){
   rvalue = 8.134
   require(data.table)
@@ -835,6 +829,83 @@ partitionHourlyFluxCUE_arr <- function(dat.hr.gf=dat.hr.gf,Ea=57.69,lagdates,lea
   return(dat.hr.gf3)
 }
 #----------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+#----------------------------------------------------------------------------------------------------------------
+#- alternate paritioning function, assuming R vs. T is linear, as per reviewer comments
+partitionHourlyFluxCUE_linear <- function(dat.hr.gf=dat.hr.gf,fits.trt=fits.trt,lagdates,leafRtoTotal = 1,leafRreduction=0){
+  rvalue = 8.134
+  require(data.table)
+  
+  #------
+  #- use the whole-canopy flux dataset to estimate linear slopes
+  
+  #- convert umol CO2 s-1 to gC hr-1
+  fits.trt$Rgc <- fits.trt$Rcanopy_umol.mean*1e-6*12.0107*60*60
+  lm1 <- lm(Rgc~0+T_treatment+Tair.mean+T_treatment:Tair.mean,data=fits.trt)
+  slopes <- unname(c(coef(lm1)[3],coef(lm1)[3]+coef(lm1)[4]))
+  
+  #-- convert mmolCO2 s-1 to gC hr-1
+  dat.hr.gf$FluxCO2_g <- with(dat.hr.gf,FluxCO2*60*60/1000*12.0107)
+  dat.hr.gf$period <- ifelse(dat.hr.gf$PAR>2,"Day","Night")
+  
+  
+  #-- partition day-time net C exchange into GPP and Ra, similar to how it is done in eddy-covariance.
+  #-- create a series of dates
+  date.vec <- seq.Date(from=min(dat.hr.gf$Date),to=max(dat.hr.gf$Date),by="day")
+  
+  #-- estimate R-Tref and Tref for each date for each chamber
+  #lagDates <- 3 # establish how many prior days to include
+  RTdat <- expand.grid(Date=date.vec,chamber=levels(dat.hr.gf$chamber))
+  RTdat$Tref <- RTdat$R_Tref <- NA
+  
+  
+  print("Partitioning Net CO2 fluxes into GPP and Ra")
+  #- set up progress bar to track that this is working
+  pb <- txtProgressBar(min = 0, max = nrow(RTdat), style = 3)
+  
+  for (i in 1:nrow(RTdat)){
+    #- trial a data.table alternative to speed this up. The filter thing was actually slower.
+    
+    #dat <- dplyr::filter(dat.hr.gf,chamber==RTdat$chamber[i],Date <= RTdat$Date[i], Date >= (RTdat$Date[i]-lagDates),period =="Night")
+    #RTdat$Tref[i] <- mean(dat$Tair_al,na.rm=T)
+    #RTdat$R_Tref[i] <- mean(dat$FluxCO2_g,na.rm=T)
+    
+    inds <- which(dat.hr.gf$chamber==RTdat$chamber[i] & dat.hr.gf$Date <= RTdat$Date[i] & dat.hr.gf$Date >= (RTdat$Date[i]-lagdates) & dat.hr.gf$period =="Night" )
+    RTdat$Tref[i] <- mean(dat.hr.gf$Tair_al[inds],na.rm=T)
+    RTdat$R_Tref[i] <- mean(dat.hr.gf$FluxCO2_g[inds],na.rm=T)
+    setTxtProgressBar(pb, i)
+    
+  }
+  close(pb)
+  
+  RTdat$Tref_K <- with(RTdat,Tref+273.15)
+  
+  #-- merge these reference data into the gap-filled flux dataframe to estimate Ra during the daytime, and hence GPP
+  dat.hr.gf3 <- merge(dat.hr.gf,RTdat,by=c("Date","chamber"))
+  #dat.hr.gf3$Ra_est <- with(dat.hr.gf3,R_Tref*Q10^((Tair_al-Tref)/10)) # estimate respiration rate. This is a negative number.
+  dat.hr.gf3$Ra_est <- with(dat.hr.gf3,R_Tref*exp((Ea*1000/(rvalue*Tref_K))*(1-Tref_K/(Tair_al+273.15)))) # estimate respiration rate. This is a negative number.
+  dat.hr.gf3$Ra_est <- ifelse(dat.hr.gf3$period=="Day",
+                              dat.hr.gf3$Ra_est-leafRreduction*leafRtoTotal*dat.hr.gf3$Ra_est,
+                              dat.hr.gf3$Ra_est) # estimate respiration rate. This is a negative number. If it's day, subtract 30% from the leaf R fraction
+  
+  
+  dat.hr.gf3$GPP <- ifelse(dat.hr.gf3$period=="Night",0,dat.hr.gf3$FluxCO2_g-dat.hr.gf3$Ra_est)
+  dat.hr.gf3$Ra <- ifelse(dat.hr.gf3$period=="Night",dat.hr.gf3$FluxCO2_g,dat.hr.gf3$Ra_est)
+  
+  return(dat.hr.gf3)
+}
+#----------------------------------------------------------------------------------------------------------------
+
+
+
 
 
 
@@ -1673,8 +1744,8 @@ plotAnet_met_diurnals <- function(export=T,lsize=2,size=2,printANOVAs=F){
     plotBy(VpdL.mean~Hour.mean,data=subset(toplot,T_treatment=="ambient"),lty=1,lwd=lsize,
            legend=F,pch=16,xaxt="n",yaxt="n",type="l",col="red",cex=size,ylim=c(0,7),xlim=xlims)
     #- add VPD of warmed
-    plotBy(VpdL.mean~Hour.mean,data=subset(toplot,T_treatment=="elevated"),lty=2,lwd=lsize,add=T,
-           legend=F,pch=16,xaxt="n",yaxt="n",type="l",col="red",cex=size,ylim=c(0,7),xlim=xlims)
+    #plotBy(VpdL.mean~Hour.mean,data=subset(toplot,T_treatment=="elevated"),lty=2,lwd=lsize,add=T,
+    #       legend=F,pch=16,xaxt="n",yaxt="n",type="l",col="red",cex=size,ylim=c(0,7),xlim=xlims)
     
     if(i==3)title(xlab="Hour",cex.lab=1.5,xpd=NA)
     if(i==1)axis(2, ylim=c(0,8),lwd=1,line=4.8,col="red",col.axis="red",las=1)
@@ -1686,6 +1757,56 @@ plotAnet_met_diurnals <- function(export=T,lsize=2,size=2,printANOVAs=F){
   
   
   if(export==T)dev.copy2pdf(file="output/Figure7.pdf")
+}
+#--------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+#--------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------
+#- compare the direct diurnal measurements with the whole-tree fluxes for a specified focal date.
+#-   Take some care here, as the flux data were frequently perterbed by investigators going into chambers on these dates
+plotDiurnalvsWTC <- function(fluxdat=dat.hr.p,focaldate=as.Date("2013-12-4")){
+  #------------------------------------
+  #- get diurnal data
+  diurnal <- read.csv("data/WTC_TEMP_CM_GX-DIURNAL_20130710-20140220_L1_v2.csv")
+  diurnal$DateTime <- as.POSIXct(diurnal$DateTime,format="%Y-%m-%d %T",tz="GMT")
+  diurnal$Date <- as.Date(diurnal$DateTime)
+  diurnal$Hour <- hour(diurnal$DateTime)
+  diurnal$timepoint <- as.factor(diurnal$timepoint)
+  
+  focaldate <- as.Date("2013-12-4")
+  
+  leaf.m <- summaryBy(Photo+Cond+Tleaf+VpdL+PARi+DateTime+Hour~ T_treatment+Date+timepoint,
+                      data=subset(diurnal,position=="top" & Date==focaldate),FUN=c(mean,standard.error),na.rm=T)
+  
+  #- get teh flux data for that day
+  canopyexample <- subset(dat.hr.p,Date==focaldate)
+  canopyexample$Hour <- hour(canopyexample$DateTime)
+  #- Calculate GPP per unit leaf area, convert to umol CO2 m-2 s-1
+  canopyexample$GPP_la <- with(canopyexample,GPP/leafArea)
+  canopyexample$GPP_la_umol <- with(canopyexample,GPP_la/12*1*10^6/60/60)
+  canopy.m <- summaryBy(GPP_la_umol~ T_treatment+Hour,
+                        data=subset(canopyexample,Hour>4 & Hour<22),FUN=c(mean,standard.error),na.rm=T)
+  
+  windows();par(mar=c(5,7,1,3))
+  ylims=c(0,25)
+  xlims=c(5,20)
+  size=2
+  plotBy(Photo.mean~Hour.mean|T_treatment,data=leaf.m,legend=F,pch=16,xaxt="n",yaxt="n",type="b",cex=size,ylim=ylims,xlim=xlims,
+         xlab="",ylab="",
+         panel.first=adderrorbars(x=leaf.m$Hour.mean,y=leaf.m$Photo.mean,SE=leaf.m$Photo.standard.error,direction="updown"))
+  plotBy(GPP_la_umol.mean~Hour|T_treatment,data=canopy.m,legend=F,pch=1,xaxt="n",yaxt="n",type="b",cex=size,ylim=ylims,xlim=xlims,add=T,
+         panel.first=adderrorbars(x=canopy.m$Hour,y=canopy.m$GPP_la_umol.mean,SE=canopy.m$GPP_la_umol.standard.error,direction="updown"))
+  magaxis(side=c(1,2,4),las=1)
+  title(ylab=expression(Photo~(mu*mol~CO[2]~m^-2~s^-1)),
+        xlab="Hour",cex.lab=2)
+  legend("topright",pch=c(16,16,1,1),col=c("black","red","black","red"),legend=c("Leaf-A","Leaf-W","Canopy-A","Canopy-W"),cex=2)
+  #-------------------------------------------------------------------------------------------------------------------
 }
 #--------------------------------------------------------------------------------------------------
 #--------------------------------------------------------------------------------------------------
@@ -2022,8 +2143,8 @@ plot_tree_size <- function(export=export){
   size.m <- summaryBy(diam+Plant_height~DateTime+T_treatment,data=subset(size,Water_treatment=="control"),FUN=c(mean,standard.error))
   
   #- process the diameter at 15cm data, possibly for an inset
-  size2 <- subset(size.list[[2]],Days_since_transplanting>-60)
-  size2.m <- summaryBy(diam_15+Plant_height~DateTime+T_treatment,data=size2,FUN=c(mean,standard.error))
+  size2 <- subset(size.list[[2]])
+  size2.m <- summaryBy(diam_15+Plant_height~T_treatment,data=subset(size2,DateTime==as.Date("2012-12-12")),FUN=c(mean,standard.error))
   
   
   #-------------------
@@ -2078,8 +2199,143 @@ plot_tree_size <- function(export=export){
   
   if(export==T) dev.copy2pdf(file="output/treeSize.pdf")
   
+  #----------------------------------------------------------------------------------------------
+  #- statistical analysis of tree size
+  size3 <- size#subset(size,Water_treatment=="control")
+  size3$T_treatment <- as.factor(size3$T_treatment)
+  size3$DateFac <- as.factor(size3$DateTime)
+  size3$d2h <- with(size3,(diam/10)^2*Plant_height)
+  
+  #- fit model to all data, and
+  #- compare models with and without autocorrelation
+  sp.diam <- lme(log(d2h)~T_treatment*DateFac,random=list(~1|chamber),data=size3,method="ML")
+  sp.diam1 <- update(sp.diam,correlation=corAR1(form=~1|chamber),method="ML")
+  AIC(sp.diam,sp.diam1)
+  anova(sp.diam,sp.diam1) # model with autocorrelation is immensely better!
+  
+  #- refit best model with REML
+  sp.diam1.reml <- update(sp.diam1,method="REML")
+  
+  #look at model diagnostics
+  plot(sp.diam1.reml,resid(.,type="p")~fitted(.) | T_treatment,abline=0)   #resid vs. fitted for each treatment
+  plot(sp.diam1.reml,log(d2h)~fitted(.)|chamber,abline=c(0,1))           #predicted vs. fitted for each chamber
+  plot(sp.diam1.reml,log(d2h)~fitted(.),abline=c(0,1))                   #predicted vs. fitted
+  qqnorm(sp.diam1.reml, ~ resid(., type = "p"), abline = c(0, 1))          #qqplot. Departure at high values.
+  anova(sp.diam1.reml,type="marginal")
+  Anova(sp.diam1.reml)
+  
+  
+  #- compare models with and without interaction terms
+  sp.diam1.noint <- update(sp.diam1,.~.-T_treatment:DateFac)
+  sp.diam1.reml.noint <- update(sp.diam1.reml,.~.-T_treatment:DateFac)
+  
+  AIC(sp.diam1,sp.diam1.noint)   # dropping the interaction results in a modestly better
+  anova(sp.diam1,sp.diam1.noint) # The interaction term should be removed?
+  
+  # ANOVA for Ra
+  anova(sp.diam1.reml,type="marginal") 
+  anova(sp.diam1.reml.noint,type="marginal") 
+  
+  lsdiam1 <- summary(lsmeans::lsmeans(sp.diam1.reml,"T_treatment"))
+  (lsdiam1$lsmean[1]-lsdiam1$lsmean[2])/lsdiam1$lsmean[1]*100 # percentage change in response to warming
+  
+  #- estimate explainatory power (r2 values) of models with and without the warming by time interaction
+  
+  sp.diam1.reml.noTrt <- update(sp.diam1.reml.noint,.~.-T_treatment)
+  sp.diam1.reml.noDate <- update(sp.diam1.reml.noint,.~.-DateFac)
+  
+  diam.full <- r.squaredGLMM(sp.diam1.reml)[1]      # full model
+  diam.noint <- r.squaredGLMM(sp.diam1.reml.noint)[1] # model lacking interaction
+  diam.notrt <- r.squaredGLMM(sp.diam1.reml.noTrt)[1] # model lacking treatment and interaction
+  diam.nodate <- r.squaredGLMM(sp.diam1.reml.noDate)[1]
+  
+  diam.full
+  diam.full-diam.noint
+  diam.full-diam.notrt
+  diam.full-diam.nodate
+  plot(allEffects(sp.diam1.reml),grid=T,multiline=T)
+  
 }
 #--------------------------------------------------------------------------------------------------
 #--------------------------------------------------------------------------------------------------
 
 
+
+
+
+#--------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------
+#- function to create a table of tree size and leaf area at the beginning and end of the experiment
+table_tree_size <- function(){
+  
+  #-------------------
+  #- Get the three direct observations of leaf area. They happened on 9 Sept 2013, 10 Feb 2014, and
+  #    during the harvest at ~25 May 2014.
+  treeMass <- read.csv("data/WTC_TEMP_CM_WTCFLUX_20130910-20140530_L2_V1.csv")
+  treeMass.sub <- subset(treeMass,as.Date(DateTime) %in% as.Date(c("2013-09-14","2014-02-10","2014-05-27")))
+  treeMass.sub$Date <- as.Date(treeMass.sub$DateTime)
+  leafArea <- summaryBy(leafArea~Date+chamber+T_treatment,
+                        data=subset(treeMass.sub,Water_treatment=="control" & Date %in% as.Date(c("2013-09-14","2014-05-27"))),
+                        FUN=c(mean),keep.names=T)
+  leafArea1 <- summaryBy(leafArea~Date+T_treatment,data=leafArea,FUN=c(mean,standard.error))
+  
+  leafArea$Date <- as.factor(leafArea$Date)
+  #-------------------
+  
+  #-------------------
+  #- Get tree diameters and heights
+  size.list <- returnd2h(plotson=0)
+  size <- size.list[[1]] # extract just the data after transplanting
+  size$Date <- as.Date(size$DateTime)
+  size.m <- summaryBy(diam+Plant_height~Date+T_treatment,
+                      data=subset(size,Water_treatment=="control"& Date %in% as.Date(c("2013-09-05","2014-05-27"))),FUN=c(mean,standard.error))
+  
+  
+  
+  
+  #-------------------
+  # make a table from leafArea1 and size.m
+  table1 <- data.frame(Date=leafArea1$Date,Comment=c(rep("Floors sealed",2),rep("Harvest",2)),
+                        Treatment=leafArea1$T_treatment)
+  table1$Diameter <- paste(sprintf("%.1f",round(size.m$diam.mean,2))," (",sprintf("%.1f",round(size.m$diam.standard.error,1)),")",sep="")
+  table1$Height <- paste(sprintf("%.1f",round(size.m$Plant_height.mean,2))," (",sprintf("%.1f",round(size.m$Plant_height.standard.error,1)),")",sep="")
+  table1$Canopy <- paste(sprintf("%.1f",round(leafArea1$leafArea.mean,2))," (",sprintf("%.1f",round(leafArea1$leafArea.standard.error,1)),")",sep="")
+  
+  names(table1) <- c("Date","Comment","Treatment","Diameter (cm)","Height (m)","Total leaf area (m^2)")
+  table1 
+  
+}
+
+
+
+#--------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------
+#- function to evaluate treating R vs. T as a linear relationship doesn't really work
+#-   when the basal respiration rate changes via acclimation.
+
+testR_linear <- function(){
+  
+  rvalue = 8.134
+  R15 <- 2
+  Ea <- 56
+  Ts <- 15:35
+  Tref_K <- 15+273.15
+  
+  #- example respiration rate #1
+  R1 <- R15*exp((Ea*1000/(rvalue*Tref_K))*(1-Tref_K/(Ts+273.15)))
+  lm1 <- lm(R1~Ts)
+  
+  #- assume acclimation over time, basal rate increases by 50%
+  R2 <- R15*2*exp((Ea*1000/(rvalue*Tref_K))*(1-Tref_K/(Ts+273.15)))
+  R1lin <- predict(lm1,newdata=data.frame(Ts=Ts))
+  R2lin <- coef(lm1)[1]/4+coef(lm1)[2]*Ts #- predict new R with adjusted linear intercept
+  
+  
+  #- plot. Notice how adjusting the intercept doesn't work very well.
+  windows(30,20);par(mfrow=c(1,1),mar=c(5,7,1,1))
+  plot(R1~Ts,type="p",ylab="R",xlab="Temperature",ylim=c(0,20),cex.lab=2,pch=16)
+  lines(R1lin~Ts,lty=1,lwd=2)
+  points(R2~Ts,type="p",ylab="R",xlab="Temperature",ylim=c(0,20),col="blue",pch=16)
+  lines(R2lin~Ts,lty=1,col="blue",lwd=2)
+  
+}

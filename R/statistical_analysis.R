@@ -427,3 +427,20 @@ CIs3$fixed[2,] # 95% confidence intervals for T_treatment effect
 #-------------------------------------------------------------------------------------------------------------------
 
 
+
+
+
+#-------------------------------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------
+#- back of the envelope calculation for one of the reviewers regarding their comment "(5)	In a back of the envelope 
+#      calculation – how much would the “hot day” increase in Ra/GPP affect overall carbon balance ? "
+#-----
+#- alternatively, just analyze data above the inflection point between Ra/GPP and T (24-hr average T > 22),
+hotDates2 <- unique(cue.day[which(cue.day$Tair_24hrs>22 & cue.day$T_treatment=="ambient"),"Date"]) # find dates with temperatures exceeding 40 deg C
+dat2$hotorcold <- ifelse(dat2$Date %in% hotDates2,"hot","cold")
+
+dat3 <- summaryBy(Ra_la+GPP_la+RtoA~Date+T_treatment+hotorcold,data=dat2,FUN=mean,keep.names=T)
+summaryBy(Ra_la+GPP_la+RtoA~hotorcold,FUN=sum,data=dat3)
+#-------------------------------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------
+
