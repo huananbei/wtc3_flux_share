@@ -33,6 +33,8 @@ source("R/functions.R")
 #- export flag. Set to "T" to create pdfs of figures in "output/", or "F" to suppress output.
 #- This flag is passed to many of the plotting functions below.
 export=T
+
+#- download and unzip the data
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
 
@@ -64,8 +66,6 @@ fits.trt <- fits.list[[2]]      #- treatment averages
 #- plot R vs. T (Figure 2)
 plotRvsT_figure2(fits.mass=fits.mass,fits.trt=fits.trt,export=export)
 
-#- plot how poorly a linear respiration rate would work
-#testR_linear()
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
 
@@ -78,8 +78,6 @@ plotRvsT_figure2(fits.mass=fits.mass,fits.trt=fits.trt,export=export)
 #- plot Rbranch and Rleaf measured at 15 degrees C (Figure 3)
 plotRleafRbranch(export=export)
 
-#- compare Rleaf 15 to Owen Atkin's GlobResp database
-compareR15()
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
 
@@ -88,7 +86,7 @@ compareR15()
 
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
-#- Read and process the hourly flux dataset. Plot Figs 4-5 and Figs S1-S2.
+#- Read and process the hourly flux dataset. Plot Figs 4-5 and Figs S2 and S6.
 
 #- read in the hourly flux data
 #dat.hr <- read.csv("data/WTC_TEMP_CM_WTCFLUX_20130910-20140530_L2_V1.csv")
@@ -100,7 +98,7 @@ dat.hr$Date <- as.Date(dat.hr$DateTime)
 #-  of prior nights to include for the estimate of the basal respiration rate (lagdates)
 dat.hr.p <- partitionHourlyFluxCUE_arr(dat.hr.gf=dat.hr,Ea=57.69,lagdates=3)
 
-#- plot an example week of partitioned fluxes (Figure S1)
+#- plot an example week of partitioned fluxes (Figure S2)
 plotPartitionedFluxes(dat.hr.gf3=dat.hr.p,ch_toplot="C07",startDate="2014-3-22",endDate="2014-3-27",export=export)
 
 #- get daily sums from the partitioned hourly data
@@ -114,11 +112,11 @@ plotPAR_AirT_CUE_GPP_Ra(cue.day.trt=cue.day.trt,export=export,lwidth=2.75)
 #- plot PAR and Temperaure dependence of GPP, Ra, and Ra/GPP (Figure 5)
 plotGPP_Ra_CUE_metdrivers(cue.day=cue.day,export=export,shading=0.7)
 
-#- plot VPD and Tair dependence (Figure S2)
+#- plot VPD and Tair dependence (Figure S6)
 plotVPD_Tair(dat=dat.hr,export=export)
 
 
-#- explore the reviewer comment regarding net C flux
+#- explore simpler metrics including net C flux, create Figs. S7-S8
 #- calculate leaf-area specific rates of GPP, convert to umol CO2 m-2 s-1
 cue.day$netC <- with(cue.day,Cgain+Closs) #g C day-1
 cue.day$netC_la <- with(cue.day,netC/leafArea)
@@ -151,9 +149,9 @@ plotGPP_hex(dat=dat.hr.p,export=export,shading=0.7)
 #    Set printANOVAs to "T" to print ANOVAs for net photosynthesis (Anet) and stomatal conductance (Cond) on each date.
 plotAnet_met_diurnals(export=export,lsize=2,printANOVAs=F)
 
-#- compare the direct diurnal measurements with the whole-tree fluxes for a specified focal date.
+#- compare the direct diurnal measurements with the whole-tree fluxes for a specified focal date. (Figure S9)
 #-   Take some care here, as the flux data were frequently perterbed by investigators going into chambers on these dates
-plotDiurnalvsWTC(focaldate=as.Date("2013-12-4"))
+plotDiurnalvsWTC(focaldate=as.Date("2013-12-4"),output=T)
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
 
@@ -162,7 +160,7 @@ plotDiurnalvsWTC(focaldate=as.Date("2013-12-4"))
 
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
-#- Does inhibition of respiration in the light affect the results? (Figs S3-4)
+#- Does inhibition of respiration in the light affect the results? (Figs S4-5)
 
 #- re-partition CO2 fluxes into Ra and GPP assuming R is reduced by 30% in the light
 dat.hr.p2 <- partitionHourlyFluxCUE_arr(dat.hr.gf=dat.hr,Ea=57.69,lagdates=3,leafRtoTotal = 1,leafRreduction=0.3)
@@ -172,7 +170,7 @@ cue.list2 <- returnCUE.day(dat=dat.hr.p2) # get daily sums from hourly data
 cue.day2 <- cue.list2[[1]]                # extract chamber values on each day
 cue.day.trt2 <- cue.list2[[2]]            # extract treatment averages
 
-#- make plots comparing partitioning methods. (Figures S3-4)
+#- make plots comparing partitioning methods. (Figures S4-5)
 plotCUE_paritioning_method(cue.day,cue.day2,export=export)
 plotCUEvsT_partitioning_method(cue.day,cue.day2,export=export,shading=0.5)
 #-------------------------------------------------------------------------------------------------------------------
@@ -181,7 +179,7 @@ plotCUEvsT_partitioning_method(cue.day,cue.day2,export=export,shading=0.5)
 
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
-#- Does tonight's repiration depend on yesterday's photosynthesis? (Figure S5)
+#- Does tonight's repiration depend on yesterday's photosynthesis? (Figure S10)
 Ra_GPP_coupling(cue.day=cue.day,export=export,shading=0.7)
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
@@ -239,8 +237,10 @@ wp.t <- summaryBy(predawn+midday~T_treatment,data=wp.ch,na.rm=T,FUN=c(mean,stand
 
 
 
-#--------------------------------------------------------------------------------------------------
-#--------------------------------------------------------------------------------------------------
-#- Process and plot the "whole-tree data" reviewers are asking for. Diameter, height, and leaf area.
+#-------------------------------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------
+#- Process tree Diameter, height, and leaf area.
 plot_tree_size(export=T)
 table_tree_size()
+#-------------------------------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------

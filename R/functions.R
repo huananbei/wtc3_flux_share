@@ -95,7 +95,7 @@ return.leaks <- function(plotson=0){
 
     #------------------------------------------------------------------------------------------------------------------
   #work out the reference [CO2] data. Note that this is chamber "13", and the data has a different structure.
-  ref <- subset(rbind(dat1.1,dat1.2,dat1.3),chamber==13)
+  ref <- subset(leakdat,chamber==13)
   ref$datetime <- as.POSIXct(paste(ref$date,ref$time,sep=" "),format="%Y-%m-%d %H:%M:%S",tz="GMT")
   
   # just grab the [CO2] data, interpolate it
@@ -388,7 +388,7 @@ return_Rcanopy_closed <- function(){
   
   #- get an estimate of leaf area for each day of the experiment
   #treeMass <- returnTreeMass()
-  treeMass <- read.csv("data/WTC_TEMP_CM_WTCFLUX_20130910-20140530_L2_V1.csv")
+  treeMass <- read.csv("data/WTC_TEMP_CM_WTCFLUX_20130914-20140526_L2_V2.csv")
   treeMass$DateTime <- as.POSIXct(treeMass$DateTime,format="%Y-%m-%d %T",tz="GMT")
   treeMass2 <- subset(treeMass,DateTime==as.POSIXct("2014-02-12 01:00:00",format="%Y-%m-%d %T",tz="GMT"),
                       select=c("chamber","leafArea"))
@@ -684,34 +684,6 @@ plotRleafRbranch <- function(export=T){
 #----------------------------------------------------------------------------------------------------------------
 
 
-#----------------------------------------------------------------------------------------------------------------
-#----------------------------------------------------------------------------------------------------------------
-compareR15 <- function(){
-  #-- apparently our respiraiton data at 15 deg C (Fig. 3) were "too low", according to one reviewer.
-  #- Below is a comparison of these data to Owen Atkin's global compilation, to show that our measurements
-  #- are biologically reasonable.
-  
-  #- read in and process our data. Note that these were collected at 15 deg C.
-  Rbranch <- read.csv("data/WTC_TEMP_CM_GX-RBRANCH_20140513-20140522_L1_v1.csv")
-  Rbranch$date <- as.Date(Rbranch$date)
-  Rbranch$campaign <- ifelse(Rbranch$date == as.Date("2014-05-13"),1,2)
-  R1 <- subset(Rbranch,campaign==1)
-  R1$Rleaf_area <- with(R1,Rleaf*1/SLA*10000/1000)
-  
-  #- read in Owen's data
-  globresp <- read.csv("data/GlobResp database_Atkin et al 2015_New Phytologist.csv",skip=16)
-  globresp$Rleaf_area <- with(globresp,Rdarka_25C_FixedQ10*FixedQ10**((15-25)/10))
-  globresp2 <- subset(globresp,PFT_LPJ %in% c("TmpEvBl","TmpDcBl")) #- subset temperate broadleaved observations
-  
-  dat <- rbind(data.frame(R=R1$Rleaf_area,source="Drake"),data.frame(R=globresp2$Rleaf_area,source=globresp2$PFT_LPJ))
-  dat$source <- factor(dat$source)
-  levels(dat$source) <- c("Drake","Atkin-TDec","Atkin-TEv")
-  windows();par(mar=c(4,7,1,1))
-  boxplot(R~source,data=dat,ylab=expression(R["leaf 15"]~(mu*mol~CO[2]~m^-2~s^-1)),xlab="Source",cex.lab=2)
-}
-#----------------------------------------------------------------------------------------------------------------
-
-
 
 
 #----------------------------------------------------------------------------------------------------------------
@@ -838,73 +810,6 @@ partitionHourlyFluxCUE_arr <- function(dat.hr.gf=dat.hr.gf,Ea=57.69,lagdates,lea
 
 
 
-#----------------------------------------------------------------------------------------------------------------
-#- alternate paritioning function, assuming R vs. T is linear, as per reviewer comments
-partitionHourlyFluxCUE_linear <- function(dat.hr.gf=dat.hr.gf,fits.trt=fits.trt,lagdates,leafRtoTotal = 1,leafRreduction=0){
-  rvalue = 8.134
-  require(data.table)
-  
-  #------
-  #- use the whole-canopy flux dataset to estimate linear slopes
-  
-  #- convert umol CO2 s-1 to gC hr-1
-  fits.trt$Rgc <- fits.trt$Rcanopy_umol.mean*1e-6*12.0107*60*60
-  lm1 <- lm(Rgc~0+T_treatment+Tair.mean+T_treatment:Tair.mean,data=fits.trt)
-  slopes <- unname(c(coef(lm1)[3],coef(lm1)[3]+coef(lm1)[4]))
-  
-  #-- convert mmolCO2 s-1 to gC hr-1
-  dat.hr.gf$FluxCO2_g <- with(dat.hr.gf,FluxCO2*60*60/1000*12.0107)
-  dat.hr.gf$period <- ifelse(dat.hr.gf$PAR>2,"Day","Night")
-  
-  
-  #-- partition day-time net C exchange into GPP and Ra, similar to how it is done in eddy-covariance.
-  #-- create a series of dates
-  date.vec <- seq.Date(from=min(dat.hr.gf$Date),to=max(dat.hr.gf$Date),by="day")
-  
-  #-- estimate R-Tref and Tref for each date for each chamber
-  #lagDates <- 3 # establish how many prior days to include
-  RTdat <- expand.grid(Date=date.vec,chamber=levels(dat.hr.gf$chamber))
-  RTdat$Tref <- RTdat$R_Tref <- NA
-  
-  
-  print("Partitioning Net CO2 fluxes into GPP and Ra")
-  #- set up progress bar to track that this is working
-  pb <- txtProgressBar(min = 0, max = nrow(RTdat), style = 3)
-  
-  for (i in 1:nrow(RTdat)){
-    #- trial a data.table alternative to speed this up. The filter thing was actually slower.
-    
-    #dat <- dplyr::filter(dat.hr.gf,chamber==RTdat$chamber[i],Date <= RTdat$Date[i], Date >= (RTdat$Date[i]-lagDates),period =="Night")
-    #RTdat$Tref[i] <- mean(dat$Tair_al,na.rm=T)
-    #RTdat$R_Tref[i] <- mean(dat$FluxCO2_g,na.rm=T)
-    
-    inds <- which(dat.hr.gf$chamber==RTdat$chamber[i] & dat.hr.gf$Date <= RTdat$Date[i] & dat.hr.gf$Date >= (RTdat$Date[i]-lagdates) & dat.hr.gf$period =="Night" )
-    RTdat$Tref[i] <- mean(dat.hr.gf$Tair_al[inds],na.rm=T)
-    RTdat$R_Tref[i] <- mean(dat.hr.gf$FluxCO2_g[inds],na.rm=T)
-    setTxtProgressBar(pb, i)
-    
-  }
-  close(pb)
-  
-  RTdat$Tref_K <- with(RTdat,Tref+273.15)
-  
-  #-- merge these reference data into the gap-filled flux dataframe to estimate Ra during the daytime, and hence GPP
-  dat.hr.gf3 <- merge(dat.hr.gf,RTdat,by=c("Date","chamber"))
-  #dat.hr.gf3$Ra_est <- with(dat.hr.gf3,R_Tref*Q10^((Tair_al-Tref)/10)) # estimate respiration rate. This is a negative number.
-  dat.hr.gf3$Ra_est <- with(dat.hr.gf3,R_Tref*exp((Ea*1000/(rvalue*Tref_K))*(1-Tref_K/(Tair_al+273.15)))) # estimate respiration rate. This is a negative number.
-  dat.hr.gf3$Ra_est <- ifelse(dat.hr.gf3$period=="Day",
-                              dat.hr.gf3$Ra_est-leafRreduction*leafRtoTotal*dat.hr.gf3$Ra_est,
-                              dat.hr.gf3$Ra_est) # estimate respiration rate. This is a negative number. If it's day, subtract 30% from the leaf R fraction
-  
-  
-  dat.hr.gf3$GPP <- ifelse(dat.hr.gf3$period=="Night",0,dat.hr.gf3$FluxCO2_g-dat.hr.gf3$Ra_est)
-  dat.hr.gf3$Ra <- ifelse(dat.hr.gf3$period=="Night",dat.hr.gf3$FluxCO2_g,dat.hr.gf3$Ra_est)
-  
-  return(dat.hr.gf3)
-}
-#----------------------------------------------------------------------------------------------------------------
-
-
 
 
 
@@ -947,7 +852,7 @@ plotPartitionedFluxes <- function(dat.hr.gf3=dat.hr.gf3,ch_toplot="C07",startDat
   
   mtext(text="Date",side=1,outer=F,line=4,cex=1.5)
   
-  if(export==T){dev.copy2pdf(file="output/FigureS1.pdf")}
+  if(export==T){dev.copy2pdf(file="output/FigureS2.pdf")}
 }
 #----------------------------------------------------------------------------------------------------------------
 
@@ -1250,7 +1155,7 @@ plotNetC_metdrivers <- function(cue.day=cue.day,export=T,shading=0.5,parcut=35){
   
   title(xlab=expression(T[air]~(degree*C*", 24-"*h~mean)),outer=T,adj=0.9)
   
-  #if(export==T) dev.copy2pdf(file="output/Figure5.pdf")
+  if(export==T) dev.copy2pdf(file="output/FigureS7.pdf")
 }
 
 
@@ -1287,7 +1192,7 @@ plotClosstogainratio_metdrivers <- function(cue.day=cue.day,export=T,shading=0.5
   
   title(xlab=expression(T[air]~(degree*C*", 24-"*h~mean)),outer=T,adj=0.9)
   
-  #if(export==T) dev.copy2pdf(file="output/Figure5.pdf")
+  if(export==T) dev.copy2pdf(file="output/FigureS8.pdf")
 }
 
 
@@ -1770,7 +1675,7 @@ plotAnet_met_diurnals <- function(export=T,lsize=2,size=2,printANOVAs=F){
 #--------------------------------------------------------------------------------------------------
 #- compare the direct diurnal measurements with the whole-tree fluxes for a specified focal date.
 #-   Take some care here, as the flux data were frequently perterbed by investigators going into chambers on these dates
-plotDiurnalvsWTC <- function(fluxdat=dat.hr.p,focaldate=as.Date("2013-12-4")){
+plotDiurnalvsWTC <- function(fluxdat=dat.hr.p,focaldate=as.Date("2013-12-4"),output=T){
   #------------------------------------
   #- get diurnal data
   diurnal <- read.csv("data/WTC_TEMP_CM_GX-DIURNAL_20130710-20140220_L1_v2.csv")
@@ -1807,6 +1712,8 @@ plotDiurnalvsWTC <- function(fluxdat=dat.hr.p,focaldate=as.Date("2013-12-4")){
         xlab="Hour",cex.lab=2)
   legend("topright",pch=c(16,16,1,1),col=c("black","red","black","red"),legend=c("Leaf-A","Leaf-W","Canopy-A","Canopy-W"),cex=2)
   #-------------------------------------------------------------------------------------------------------------------
+  if(export==T) dev.copy2pdf(file="Output/FigureS9.pdf")
+  
 }
 #--------------------------------------------------------------------------------------------------
 #--------------------------------------------------------------------------------------------------
@@ -1819,7 +1726,7 @@ plotDiurnalvsWTC <- function(fluxdat=dat.hr.p,focaldate=as.Date("2013-12-4")){
 
 #--------------------------------------------------------------------------------------------------
 #--------------------------------------------------------------------------------------------------
-#- plot the relationship between GPP, Ra, and CUE for two partitioning methods (Figure S3)
+#- plot the relationship between GPP, Ra, and CUE for two partitioning methods (Figure S4)
 plotCUE_paritioning_method <- function(cue.day1=cue.day1,cue.day2=cue.day2,export=T){
   
   windows(30,12);par(mfrow=c(1,3),mar=c(5,6,1,1),cex.lab=1.5,cex.axis=1.3,las=1)
@@ -1861,7 +1768,7 @@ plotCUE_paritioning_method <- function(cue.day1=cue.day1,cue.day2=cue.day2,expor
                                 unname(round(coef(lm.CUE)[1],3)),
                                 sep=""),bty="n",cex=1.5)
   legend("bottomright","c",cex=1.5,bty="n",inset=-0.002)
-  if(export==T) dev.copy2pdf(file="Output/FigureS3.pdf")
+  if(export==T) dev.copy2pdf(file="Output/FigureS4.pdf")
 }
 #--------------------------------------------------------------------------------------------------
 #--------------------------------------------------------------------------------------------------
@@ -1873,8 +1780,8 @@ plotCUE_paritioning_method <- function(cue.day1=cue.day1,cue.day2=cue.day2,expor
 
 #--------------------------------------------------------------------------------------------------
 #--------------------------------------------------------------------------------------------------
-#- plot CUE vs. T for the two paritioning methods (with and without light inibition of R)
-#- Creates Figure S4
+#- plot Ra/GPP vs. T for the two paritioning methods (with and without light inibition of R)
+#- Creates Figure S5
 plotCUEvsT_partitioning_method <- function(cue.day1=cue.day,cue.day2=cue.day2,export=T,shading=0.5){
   
   
@@ -1902,7 +1809,7 @@ plotCUEvsT_partitioning_method <- function(cue.day1=cue.day,cue.day2=cue.day2,ex
   title(xlab=expression(T[air]~(degree*C)),
         ylab=expression(R[a]/GPP))
   legend("topright","b",bty="n",inset=-0.001,cex=1.2)
-  if(export==T) dev.copy2pdf(file="Output/FigureS4.pdf")
+  if(export==T) dev.copy2pdf(file="Output/FigureS5.pdf")
 }
 #--------------------------------------------------------------------------------------------------
 #--------------------------------------------------------------------------------------------------
@@ -1912,7 +1819,7 @@ plotCUEvsT_partitioning_method <- function(cue.day1=cue.day,cue.day2=cue.day2,ex
 
 #--------------------------------------------------------------------------------------------------
 #--------------------------------------------------------------------------------------------------
-#- plot the co-variance between air temperature and VPD (Figure S2)
+#- plot the co-variance between air temperature and VPD (Figure S6)
 plotVPD_Tair <- function(dat=dat.hr,export=F){
   
   dat$RH <- VPDtoRH(dat.hr$VPDair, dat.hr$Tair_al, Pa = 101)
@@ -1951,7 +1858,7 @@ plotVPD_Tair <- function(dat=dat.hr,export=F){
   legend("topleft",pch=c("+","+",NA),lty=c(NA,NA,3),col=c("black","red","black"),legend=c("Ambient","Warmed","RH isolines"),bty="n")
   magaxis(side=c(1,2,3,4),labels=c(1,1,0,0),xlab="",ylab="",las=1)
   
-  if(export==T)dev.copy2pdf(file="Output/FigureS2.pdf")
+  if(export==T)dev.copy2pdf(file="Output/FigureS6.pdf")
 }
 #--------------------------------------------------------------------------------------------------
 #--------------------------------------------------------------------------------------------------
@@ -1977,13 +1884,9 @@ Ra_GPP_coupling <- function(cue.day=cue.day,export=export,shading=0.7,kgam=3){
              ylim=c(0,1.5),
              data=cue.day, kgam=kgam, axes=FALSE)
   title(ylab=expression(Nightly~C~loss~(gC~m^-2~d^-1)),xlab=expression(GPP~(gC~m^-2~d^-1)),outer=F,cex.lab=1.5)
-#   lme1 <- lme(Ranight_la~GPP_la*T_treatment,random=~1|chamber,data=cue.day)
-#   anova(lme1)
-#   summary(lme1)
-#   lm1 <- lm(Ranight_la~GPP_la,data=cue.day)
-#   anova(lm1);summary(lm1)
+
   magaxis(side=1:4,labels=c(1,1,0,0))
-  if(export==T) dev.copy2pdf(file="output/FigureS5.pdf")
+  if(export==T) dev.copy2pdf(file="output/FigureS10.pdf")
 }
 #--------------------------------------------------------------------------------------------------
 #--------------------------------------------------------------------------------------------------
@@ -2308,34 +2211,3 @@ table_tree_size <- function(){
 
 
 
-#--------------------------------------------------------------------------------------------------
-#--------------------------------------------------------------------------------------------------
-#- function to evaluate treating R vs. T as a linear relationship doesn't really work
-#-   when the basal respiration rate changes via acclimation.
-
-testR_linear <- function(){
-  
-  rvalue = 8.134
-  R15 <- 2
-  Ea <- 56
-  Ts <- 15:35
-  Tref_K <- 15+273.15
-  
-  #- example respiration rate #1
-  R1 <- R15*exp((Ea*1000/(rvalue*Tref_K))*(1-Tref_K/(Ts+273.15)))
-  lm1 <- lm(R1~Ts)
-  
-  #- assume acclimation over time, basal rate increases by 50%
-  R2 <- R15*2*exp((Ea*1000/(rvalue*Tref_K))*(1-Tref_K/(Ts+273.15)))
-  R1lin <- predict(lm1,newdata=data.frame(Ts=Ts))
-  R2lin <- coef(lm1)[1]/4+coef(lm1)[2]*Ts #- predict new R with adjusted linear intercept
-  
-  
-  #- plot. Notice how adjusting the intercept doesn't work very well.
-  windows(30,20);par(mfrow=c(1,1),mar=c(5,7,1,1))
-  plot(R1~Ts,type="p",ylab="R",xlab="Temperature",ylim=c(0,20),cex.lab=2,pch=16)
-  lines(R1lin~Ts,lty=1,lwd=2)
-  points(R2~Ts,type="p",ylab="R",xlab="Temperature",ylim=c(0,20),col="blue",pch=16)
-  lines(R2lin~Ts,lty=1,col="blue",lwd=2)
-  
-}

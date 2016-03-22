@@ -67,21 +67,6 @@ if (require("MuMIn",quietly=T)==F) {
   install.packages("MuMIn")
   library(MuMIn,quietly=T)}
 
-# 
-# library(mgcv,quietly=T)
-# library(scales,quietly=T)
-# library(gplots,quietly=T)
-# library(magicaxis,quietly=T)
-# library(lubridate,quietly=T)
-# library(doBy,quietly=T)
-# library(Hmisc,quietly=T)
-# library(zoo,quietly=T)
-# library(hexbin,quietly=T)
-# library(nlme,quietly=T)
-# library(lsmeans,quietly=T)
-# library(car,quietly=T)
-# library(data.table,quietly=T)
-# library(calibrate,quietly=T)
 
 #- the following libraries aren't on CRAN, but can be installed from github or bitbucket with devtools
 if (require("devtools")==F) {install.packages("devtools")
@@ -97,7 +82,6 @@ if (require("plotBy")==F){
   library(plotBy,quietly=T)}
 
 
-# library(piecewiseSEM,quietly=T) # for estimating r2 value in mixed-effects models
-# library(plantecophys,quietly=T) # for modeling leaf-level gas exchange
-# library(HIEv,quietly=T)  
-# library(plotBy,quietly=T)
+#- check if the data and output directories exist. If they don't, create them.
+dir.create(file.path("data"),showWarnings=F)
+dir.create(file.path("output"),showWarnings=F)
