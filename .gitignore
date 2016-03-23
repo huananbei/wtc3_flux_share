@@ -16,3 +16,6 @@ vignettes/*.pdf
 
 # pdfs in output folder
 output/*.pdf
+
+# the entire data folder
+data/
