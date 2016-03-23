@@ -14,8 +14,6 @@
 #- If you have cloned the github repository as suggested here https://github.com/jedrake/wtc3_flux_share ,
 #      then this script should simply work. If you have downloaded a zipfile or otherwise copied the 
 #      data and code manually, then you will need to set the working directory to wherever you've put the main directory.
-#      That is, set the working directory to the "wtc3_flux_share" directory containing the folders "data", 
-#         "R", and the file "README.md".
 #      The following line is an example- you will need to uncomment this and edit it to match your local machine.
 # setwd("C:/Repos/wtc3_flux_share")
 
@@ -23,6 +21,10 @@
 #- Load required libraries. There are quite a few (>20), including some non-standard functions that
 #    are not on CRAN. This script will check for required libraries and install any that are missing.
 source("R/loadLibraries.R")
+
+#- Download an the data. This downloads the zipfile from figshare and extracts it to a folder named "data".
+download.file("https://ndownloader.figshare.com/files/4857112?private_link=cdc9a3caf5bffc0add94", "data.zip", mode="wb")
+unzip("data.zip",overwrite=F)
 
 #- Updating packages is highly recommended
 #update.packages(ask=F)
@@ -32,9 +34,9 @@ source("R/functions.R")
 
 #- export flag. Set to "T" to create pdfs of figures in "output/", or "F" to suppress output.
 #- This flag is passed to many of the plotting functions below.
-export=T
+export=F
 
-#- download and unzip the data
+
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
 
@@ -240,7 +242,7 @@ wp.t <- summaryBy(predawn+midday~T_treatment,data=wp.ch,na.rm=T,FUN=c(mean,stand
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
 #- Process tree Diameter, height, and leaf area.
-plot_tree_size(export=T)
+plot_tree_size(export=F)
 table_tree_size()
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------

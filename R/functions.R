@@ -3,8 +3,6 @@
 #    are called by just a few lines of code in "main script.R" to recreate the analyses and figures.
 #----------------------------------------------------------------------------------------------------------------
 
-#- create an "output" directory, if one does not already exist.
-dir.create("output",showWarnings=F)
 
 
 
@@ -278,8 +276,9 @@ return_Rcanopy_closed <- function(){
   #note that the actual measured [CO2] by the central irga of the 
   ref <- subset(Mindat,chamber==13)
   
-  # just grab the [CO2] data, interpolate it
-  ref2 <- ref[,c(13,19)]
+  # just grab the [CO2] data, interpolate it. Note that teh different structure of the reference data
+  #  meant that the CO2 data were actually stored in the column labeled "DPCChamb", but ONLY for chamber =13
+  ref2 <- ref[,c("DPCChamb","DateTime")]
   names(ref2)[1] <- "CO2ref"
   times <- data.frame(DateTime =seq.POSIXt(from=starttime1,to=stoptime5,by="sec",tz="GMT"))
   
@@ -2031,7 +2030,7 @@ plot_tree_size <- function(export=export){
   #-------------------
   #- Get the three direct observations of leaf area. They happened on 9 Sept 2013, 10 Feb 2014, and
   #    during the harvest at ~25 May 2014.
-  treeMass <- read.csv("data/WTC_TEMP_CM_WTCFLUX_20130910-20140530_L2_V1.csv")
+  treeMass <- read.csv("data/WTC_TEMP_CM_WTCFLUX_20130914-20140526_L2_V2.csv")
   treeMass.sub <- subset(treeMass,as.Date(DateTime) %in% as.Date(c("2013-09-14","2014-02-10","2014-05-27")))
   treeMass.sub$Date <- as.Date(treeMass.sub$DateTime)
   leafArea <- summaryBy(leafArea~Date+chamber+T_treatment,data=subset(treeMass.sub,Water_treatment=="control"),FUN=c(mean),keep.names=T)
@@ -2102,62 +2101,6 @@ plot_tree_size <- function(export=export){
   
   if(export==T) dev.copy2pdf(file="output/treeSize.pdf")
   
-  #----------------------------------------------------------------------------------------------
-  #- statistical analysis of tree size
-  size3 <- size#subset(size,Water_treatment=="control")
-  size3$T_treatment <- as.factor(size3$T_treatment)
-  size3$DateFac <- as.factor(size3$DateTime)
-  size3$d2h <- with(size3,(diam/10)^2*Plant_height)
-  
-  #- fit model to all data, and
-  #- compare models with and without autocorrelation
-  sp.diam <- lme(log(d2h)~T_treatment*DateFac,random=list(~1|chamber),data=size3,method="ML")
-  sp.diam1 <- update(sp.diam,correlation=corAR1(form=~1|chamber),method="ML")
-  AIC(sp.diam,sp.diam1)
-  anova(sp.diam,sp.diam1) # model with autocorrelation is immensely better!
-  
-  #- refit best model with REML
-  sp.diam1.reml <- update(sp.diam1,method="REML")
-  
-  #look at model diagnostics
-  plot(sp.diam1.reml,resid(.,type="p")~fitted(.) | T_treatment,abline=0)   #resid vs. fitted for each treatment
-  plot(sp.diam1.reml,log(d2h)~fitted(.)|chamber,abline=c(0,1))           #predicted vs. fitted for each chamber
-  plot(sp.diam1.reml,log(d2h)~fitted(.),abline=c(0,1))                   #predicted vs. fitted
-  qqnorm(sp.diam1.reml, ~ resid(., type = "p"), abline = c(0, 1))          #qqplot. Departure at high values.
-  anova(sp.diam1.reml,type="marginal")
-  Anova(sp.diam1.reml)
-  
-  
-  #- compare models with and without interaction terms
-  sp.diam1.noint <- update(sp.diam1,.~.-T_treatment:DateFac)
-  sp.diam1.reml.noint <- update(sp.diam1.reml,.~.-T_treatment:DateFac)
-  
-  AIC(sp.diam1,sp.diam1.noint)   # dropping the interaction results in a modestly better
-  anova(sp.diam1,sp.diam1.noint) # The interaction term should be removed?
-  
-  # ANOVA for Ra
-  anova(sp.diam1.reml,type="marginal") 
-  anova(sp.diam1.reml.noint,type="marginal") 
-  
-  lsdiam1 <- summary(lsmeans::lsmeans(sp.diam1.reml,"T_treatment"))
-  (lsdiam1$lsmean[1]-lsdiam1$lsmean[2])/lsdiam1$lsmean[1]*100 # percentage change in response to warming
-  
-  #- estimate explainatory power (r2 values) of models with and without the warming by time interaction
-  
-  sp.diam1.reml.noTrt <- update(sp.diam1.reml.noint,.~.-T_treatment)
-  sp.diam1.reml.noDate <- update(sp.diam1.reml.noint,.~.-DateFac)
-  
-  diam.full <- r.squaredGLMM(sp.diam1.reml)[1]      # full model
-  diam.noint <- r.squaredGLMM(sp.diam1.reml.noint)[1] # model lacking interaction
-  diam.notrt <- r.squaredGLMM(sp.diam1.reml.noTrt)[1] # model lacking treatment and interaction
-  diam.nodate <- r.squaredGLMM(sp.diam1.reml.noDate)[1]
-  
-  diam.full
-  diam.full-diam.noint
-  diam.full-diam.notrt
-  diam.full-diam.nodate
-  plot(allEffects(sp.diam1.reml),grid=T,multiline=T)
-  
 }
 #--------------------------------------------------------------------------------------------------
 #--------------------------------------------------------------------------------------------------
@@ -2174,7 +2117,7 @@ table_tree_size <- function(){
   #-------------------
   #- Get the three direct observations of leaf area. They happened on 9 Sept 2013, 10 Feb 2014, and
   #    during the harvest at ~25 May 2014.
-  treeMass <- read.csv("data/WTC_TEMP_CM_WTCFLUX_20130910-20140530_L2_V1.csv")
+  treeMass <- read.csv("data/WTC_TEMP_CM_WTCFLUX_20130914-20140526_L2_V2.csv")
   treeMass.sub <- subset(treeMass,as.Date(DateTime) %in% as.Date(c("2013-09-14","2014-02-10","2014-05-27")))
   treeMass.sub$Date <- as.Date(treeMass.sub$DateTime)
   leafArea <- summaryBy(leafArea~Date+chamber+T_treatment,
