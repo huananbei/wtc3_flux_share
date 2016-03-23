@@ -22,8 +22,9 @@
 #    are not on CRAN. This script will check for required libraries and install any that are missing.
 source("R/loadLibraries.R")
 
-#- Download an the data. This downloads the zipfile from figshare and extracts it to a folder named "data".
-download.file("https://ndownloader.figshare.com/files/4857112?private_link=cdc9a3caf5bffc0add94", "data.zip", mode="wb")
+#- Download an the data. This downloads the zipfile from figshare
+download.file("https://ndownloader.figshare.com/files/4857112", "data.zip", mode="wb")
+# Extract data to a folder named "data".
 unzip("data.zip",overwrite=F)
 
 #- Updating packages is highly recommended
@@ -34,7 +35,7 @@ source("R/functions.R")
 
 #- export flag. Set to "T" to create pdfs of figures in "output/", or "F" to suppress output.
 #- This flag is passed to many of the plotting functions below.
-export=F
+export=T
 
 
 #-------------------------------------------------------------------------------------------------------------------
@@ -67,9 +68,10 @@ fits.trt <- fits.list[[2]]      #- treatment averages
 
 #- plot R vs. T (Figure 2)
 plotRvsT_figure2(fits.mass=fits.mass,fits.trt=fits.trt,export=export)
+#-------------------------------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------
 
-#-------------------------------------------------------------------------------------------------------------------
-#-------------------------------------------------------------------------------------------------------------------
+
 
 
 
@@ -79,7 +81,6 @@ plotRvsT_figure2(fits.mass=fits.mass,fits.trt=fits.trt,export=export)
 #-------------------------------------------------------------------------------------------------------------------
 #- plot Rbranch and Rleaf measured at 15 degrees C (Figure 3)
 plotRleafRbranch(export=export)
-
 #-------------------------------------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------------------------------------
 
