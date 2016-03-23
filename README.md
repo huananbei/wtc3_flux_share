@@ -1,12 +1,12 @@
 # wtc3_flux_share
-Whole tree flux dataset and processing scripts. This repository contains the data and R code to replicate the figures and analyses presented in the following manuscript:
+Photosynthesis and respiration at the leaf and canopy scales for Eucalyptus tereticornis trees grown in whole-tree chambers at the Hawkesbury Forest Experiment. This repository contains the R code to replicate the figures and analyses presented in the following manuscript:
 
 "Does physiological acclimation to climate warming stabilize the ratio of canopy respiration to photosynthesis?"
 Drake JE, Tjoelker MG, Aspinwall MJ, Reich PB, Barton CVM, Medlyn BE, Duursma RA 
 
 There are two ways to download and use this code.
 
-(1) I recommend that you clone this repository into an Rstudio project by copying the SSH link on the right, and pasting the link into a new Rstudio project URL (File > New Project > Version Control > Git). You will also need git. This process is described in useful detail here:  http://www.molecularecologist.com/2013/11/using-github-with-r-and-rstudio/ .
+(1) I recommend that you clone this repository into an Rstudio project by copying the SSH (or HTTPS) link on the right, and pasting the link into a new Rstudio project URL (File > New Project > Version Control > Git). You will also need git. This process is described in useful detail here:  http://www.molecularecologist.com/2013/11/using-github-with-r-and-rstudio/ .
 
 (2) You could also choose to download a zip file of this repository using the link on the right. Upzip it in a location of your choosing and update the setwd() command near the top of “main_script.R” accordingly. This is simpler and does not require git.
 
